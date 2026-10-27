@@ -21,7 +21,11 @@ function doPost(e) {
       + '. First character matches: ' + (got.charAt(0) === want.charAt(0))
       + '. Last character matches: ' + (got.slice(-1) === want.slice(-1)) + '.');
   }
-  MailApp.sendEmail({ to: d.to, subject: d.subject, body: d.text, name: "Keith's Handyman Services (demo)" });
+  try {
+    MailApp.sendEmail({ to: d.to, subject: d.subject, body: d.text, name: "Keith's Handyman Services (demo)" });
+  } catch (err) {
+    return reply('error: ' + String(err.message || err).slice(0, 120));
+  }
   return reply('ok');
 }
 

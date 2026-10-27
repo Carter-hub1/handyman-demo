@@ -945,6 +945,7 @@ function explainMail(j){
   if(j.step==='limit')return "Today's email limit has been reached. Try again tomorrow.";
   const body=String(j.reply||'');
   if(/^no\b/i.test(body.trim()))return 'The Google script refused it. '+(body.trim().replace(/^no:?\s*/i,'')||'The secret in the script does not match MAIL_SECRET in Cloudflare.');
+  if(/^error/i.test(body.trim()))return 'The script ran but could not send the email: '+body.trim().replace(/^error:?\s*/i,'');
   if(/<html|<!doctype|sign in|accounts\.google/i.test(body))return 'Google answered with a web page instead of sending. The script is probably not shared with "Anyone", not yet authorised, or the web app URL is wrong.';
   if(/doPost|function not found/i.test(body))return 'The script has no doPost function, or its latest version is not deployed.';
   return 'It failed (status '+j.status+'): '+body.slice(0,120);
