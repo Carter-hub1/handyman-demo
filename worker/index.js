@@ -2,7 +2,7 @@
 //   POST /chat   forwards a chat request to Claude (if ANTHROPIC_API_KEY is set) or Groq. Keys stay here.
 //   GET  /state  returns the shared schedule
 //   POST /op     sets or deletes one booking, block or the working hours
-//   POST /notify emails the booking confirmation (only if MAIL_WEBHOOK_URL and MAIL_SECRET are set)
+//   POST /notify emails the customer (confirmation, price request, counter-offer, decline) and Keith (only if MAIL_WEBHOOK_URL and MAIL_SECRET are set)
 const MODEL = 'llama-3.3-70b-versatile';
 const CLAUDE_MODEL = 'claude-haiku-5-5';
 const KINDS = { bookings: 500, blocks: 200 };
@@ -26,7 +26,7 @@ export default {
 
     const load = async () => (await env.STATE.get('state', 'json')) || { bookings: {}, blocks: {} };
 
-    if (url.pathname === '/state' && req.method === 'GET') return json(await load());
+    if (url.pathname === '/state' && req.method === 'GET') return json({ ...(await load()), v: 2 });
 
     if (url.pathname === '/op' && req.method === 'POST') {
       const raw = await req.text();
@@ -76,7 +76,7 @@ export default {
     if (url.pathname === '/notify' && req.method === 'POST') {
       if (!env.MAIL_WEBHOOK_URL || !env.MAIL_SECRET) return json({ sent: false, reason: 'email not configured' });
       const raw = await req.text();
-      if (raw.length > 4000) return json({ error: 'too large' }, 413);
+      if (raw.length > 5000) return json({ error: 'too large' }, 413);
       let b;
       try { b = JSON.parse(raw); } catch { return json({ error: 'bad json' }, 400); }
       const k = b.booking || {};
@@ -88,29 +88,22 @@ export default {
       if (!hasEmail && !env.KEITH_EMAIL) return json({ sent: false, reason: 'no email given' });
       const before = Number(await env.STATE.get('mailed:' + b.id)) || 0;
       if (before && !b.resend) return json({ sent: false, reason: 'already sent' });
-      if (before >= 3) return json({ sent: false, reason: 'limit for this booking' });
+      if (before >= 6) return json({ sent: false, reason: 'limit for this booking' });
       const day = new Date().toISOString().slice(0, 10);
       const cap = Number(env.EMAIL_DAILY_CAP) || 20;
       const used = Number(await env.STATE.get('mailcount:' + day)) || 0;
-      const keithCopy = !!env.KEITH_EMAIL && before === 0;
+      const keithCopy = !!env.KEITH_EMAIL && before === 0 && k.status !== 'declined';
       const need = (hasEmail ? 1 : 0) + (keithCopy ? 1 : 0);
       if (used + need > cap) return json({ sent: false, reason: 'daily limit reached' });
       await env.STATE.put('mailcount:' + day, String(used + need), { expirationTtl: 172800 });
-      const when = fmtDate(k.date) + ', ' + fmtTime(k.start) + ' to ' + fmtTime(k.start + k.dur);
-      const clean = (v, n) => String(v ?? '').replace(/[\r\n]+/g, ' ').slice(0, n);
       if (hasEmail) {
-        const sent = await sendMail(env, k.email, 'Your booking with Keith\'s Handyman Services (' + clean(k.ref, 12) + ')',
-          'Hi ' + clean(k.name, 80) + ',\n\nYour booking with Keith\'s Handyman Services is confirmed.\n\n'
-          + 'Service: ' + clean(k.serviceName, 80) + '\nWhen: ' + when + '\nWhere: ' + clean(k.address, 160) + '\nReference: ' + clean(k.ref, 12)
-          + '\n\nTo change or cancel, message the chat on the website with your reference.\n\nThis is a demo booking. No visit will take place.\n');
-        if (!sent) return json({ sent: false, reason: 'mail service failed' }, 502);
+        const m = customerMail(k);
+        if (!(await sendMail(env, k.email, m.subject, m.text))) return json({ sent: false, reason: 'mail service failed' }, 502);
       }
       await env.STATE.put('mailed:' + b.id, String(before + 1), { expirationTtl: 604800 });
       if (keithCopy) {
-        await sendMail(env, env.KEITH_EMAIL, 'New booking: ' + clean(k.name, 60) + ', ' + fmtDate(k.date) + ' ' + fmtTime(k.start),
-          'New demo booking\n\nCustomer: ' + clean(k.name, 80) + '\nPhone: ' + clean(k.phone, 40) + '\nEmail: ' + (hasEmail ? k.email : '(none given)')
-          + '\nService: ' + clean(k.serviceName, 80) + '\nWhen: ' + when + '\nWhere: ' + clean(k.address, 160)
-          + '\nNotes: ' + clean(k.notes, 300) + '\nReference: ' + clean(k.ref, 12) + '\n');
+        const m = keithMail(k, hasEmail);
+        await sendMail(env, env.KEITH_EMAIL, m.subject, m.text);
       }
       return json({ sent: hasEmail });
     }
@@ -190,3 +183,49 @@ async function sendMail(env, to, subject, text) {
 }
 const fmtTime = m => `${Math.floor(m / 60) % 12 || 12}:${String(m % 60).padStart(2, '0')} ${Math.floor(m / 60) >= 12 ? 'pm' : 'am'}`;
 const fmtDate = d => new Date(d + 'T12:00:00Z').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+
+const clean = (v, n) => String(v ?? '').replace(/[\r\n]+/g, ' ').slice(0, n);
+const pounds = n => (Number.isFinite(n) && n > 0 ? '£' + Math.round(n * 100) / 100 : '');
+
+function details(k) {
+  return 'Service: ' + clean(k.serviceName, 80) + '\nWhen: ' + fmtDate(k.date) + ', ' + fmtTime(k.start) + ' to ' + fmtTime(k.start + k.dur)
+    + '\nWhere: ' + clean(k.address, 160) + '\nReference: ' + clean(k.ref, 12);
+}
+
+// What the customer is told, depending on where the booking stands.
+function customerMail(k) {
+  const hi = 'Hi ' + clean(k.name, 80) + ',\n\n';
+  const price = pounds(k.offer);
+  const note = k.keithNote ? 'Keith\'s note: ' + clean(k.keithNote, 200) + '\n' : '';
+  const demo = '\nThis is a demo booking. No visit will take place.\n';
+  const ref = clean(k.ref, 12);
+  if (k.status === 'pending' && k.priceBy === 'keith') {
+    return { subject: 'Keith suggested a price for your booking (' + ref + ')',
+      text: hi + 'Keith has looked at your booking request and suggests ' + price + ' for this job.\n' + note + '\n' + details(k)
+        + '\n\nTo accept, message the chat on the website with your reference and say you accept. Your time is held for you until then.\n' + demo };
+  }
+  if (k.status === 'pending') {
+    return { subject: 'We received your booking request (' + ref + ')',
+      text: hi + 'Thanks for your booking request. It is pending until Keith approves your price of ' + price + '. We will email you as soon as he replies, and your time is held for you meanwhile.\n\n' + details(k)
+        + '\n\nTo change or cancel, message the chat on the website with your reference.\n' + demo };
+  }
+  if (k.status === 'declined') {
+    return { subject: 'An update on your booking request (' + ref + ')',
+      text: hi + 'Sorry, Keith could not accept this booking' + (price ? ' at ' + price : '') + '.\n' + note + '\n' + details(k)
+        + '\n\nYou are welcome to message the chat on the website to book another time or suggest a different price.\n' + demo };
+  }
+  return { subject: 'Your booking with Keith\'s Handyman Services (' + ref + ')',
+    text: hi + 'Your booking with Keith\'s Handyman Services is confirmed.' + (k.priceBy === 'agreed' && price ? '\nAgreed price: ' + price : '') + '\n\n' + details(k)
+      + '\n\nTo change or cancel, message the chat on the website with your reference.\n' + demo };
+}
+
+function keithMail(k, hasEmail) {
+  const when = fmtDate(k.date) + ' ' + fmtTime(k.start);
+  const body = 'Customer: ' + clean(k.name, 80) + '\nPhone: ' + clean(k.phone, 40) + '\nEmail: ' + (hasEmail ? k.email : '(none given)')
+    + '\n' + details(k) + '\nNotes: ' + clean(k.notes, 300) + '\n';
+  if (k.status === 'pending') {
+    return { subject: 'Approval needed: ' + clean(k.name, 60) + ', ' + pounds(k.offer) + ', ' + when,
+      text: 'A customer asked for ' + pounds(k.offer) + ' and the booking is pending your approval. Open Keith\'s schedule to accept, counter-offer or decline.\n\n' + body };
+  }
+  return { subject: 'New booking: ' + clean(k.name, 60) + ', ' + when, text: 'New demo booking\n\n' + body };
+}

@@ -27,6 +27,10 @@ Open the handyman view directly with `#handyman` on the end of the address.
 3. Put the Worker address in `config.js`.
 4. Push to GitHub and turn on Pages (Settings, Pages, deploy from the main branch).
 
+## Price approval (quotes)
+
+If a customer asks for a specific price, the assistant books the slot as **Pending** and holds the time. Keith sees it under "Needs your approval" on his schedule and can accept, type a counter-offer, or decline. The customer is emailed each step (if emails are set up) and can accept a counter-offer in the chat with their reference and phone number. After updating the Worker code, the price emails use the new wording.
+
 ## Booking confirmation emails (optional)
 
 Off until you set it up. Emails are sent from your own Gmail through a small Google Apps Script, so no domain is needed.

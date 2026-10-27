@@ -117,6 +117,7 @@ button{font:inherit;color:inherit}
 .ticket::before,.ticket::after{content:"";position:absolute;top:50%;width:12px;height:12px;border-radius:50%;background:var(--surface2);border:1px solid var(--ink);transform:translateY(-50%)}
 .ticket::before{left:-7px}.ticket::after{right:-7px}
 .ticket .stamp{font-family:var(--f-mono);font-size:11px;letter-spacing:.14em;color:var(--ok);font-weight:600}
+.ticket .stamp.pend{color:var(--accent)}
 .ticket h3{font-size:17px}
 .ticket .row{font-size:14px;color:var(--muted)}
 .ticket .ref{font-family:var(--f-mono);font-size:13px}
@@ -185,6 +186,16 @@ footer p{opacity:.85;font-size:15px}
 .ev.block{background:var(--surface);color:var(--ink);border:1px solid var(--muted);background-image:repeating-linear-gradient(45deg,transparent 0 6px,var(--line) 6px 8px)}
 .ev.new{animation:pop 1.6s ease-out 3}
 @keyframes pop{0%{box-shadow:0 0 0 0 var(--accent)}70%{box-shadow:0 0 0 8px transparent}100%{box-shadow:0 0 0 0 transparent}}
+.ev.pending{background:var(--surface);color:var(--ink);border:2px dashed var(--accent)}
+.ev.pending .t{color:var(--accent);font-weight:600}
+.appr{border:1px solid var(--accent);border-radius:10px;background:var(--surface);margin-bottom:16px;overflow:hidden}
+.appr.wait{border-color:var(--line)}
+.appr h2{font-size:16px;padding:12px 16px;border-bottom:1px solid var(--line);display:flex;gap:8px;align-items:center}
+.appr .item{padding:14px 16px;display:grid;gap:8px;border-bottom:1px solid var(--line)}
+.appr .item:last-child{border-bottom:0}
+.appr .top{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start}
+.appr .price{font-family:var(--f-display);font-stretch:112%;font-weight:800;font-size:22px}
+.appr .btns{display:flex;gap:8px;flex-wrap:wrap}
 .nowline{position:absolute;left:0;right:0;height:2px;background:var(--now);z-index:2;pointer-events:none}
 .nowline::before{content:"";position:absolute;left:-1px;top:-3px;width:8px;height:8px;border-radius:50%;background:var(--now)}
 .empty{border:1px dashed var(--line);border-radius:10px;padding:16px;margin-bottom:16px;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:var(--surface)}
@@ -334,6 +345,7 @@ img{max-width:100%}
         <button class="btn" type="button" id="bSet">Hours &amp; reset</button>
       </div>
     </div>
+    <div id="approvals"></div>
     <div id="emptyBox" class="empty" hidden>
       <span>No jobs on the calendar yet.</span>
       <button class="btn pine" type="button" id="bSeed">Load sample jobs</button>
@@ -372,6 +384,9 @@ const SERVICES=[
  {id:'other',name:'Other small job (quote visit)',mins:60,from:0,blurb:'Not on the list? Keith visits, looks, and quotes. The visit is free.'}
 ];
 const STEP=30,BUF=30;
+const live=b=>b.status==='booked'||b.status==='pending';
+const money=n=>'£'+(Math.round(Number(n)*100)/100).toString();
+const waitingOn=b=>b.status!=='pending'?'':(b.priceBy==='keith'?'customer':'Keith');
 const DEFAULT_HOURS={start:9,end:18,days:[1,2,3,4,5]};
 const DAYN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const pad=n=>String(n).padStart(2,'0');
@@ -435,6 +450,7 @@ function makeSeed(){
    [2,1,'14:00','tv','Aisha Khan','555-0188','60 Birch Close','Mount above fireplace'],
    [3,1,'10:00','furniture','Ben Carter','555-0172','23 Station Rd','Desk and bookcase']];
   const bookings=J.map(([d,w,t,sid,name,phone,address,notes],i)=>{const s=svc(sid);return{id:'s_b'+i,data:{ref:'KH-S'+pad(i+1)+'X',date:addDays(mon,d+w*7),start:parseT(t),dur:s.mins,service:s.id,serviceName:s.name,name,phone,address,notes,status:'booked',source:'sample',createdAt:0}}});
+  bookings.push({id:'s_b10',data:{ref:'KH-S11X',date:addDays(mon,11),start:13*60,dur:240,service:'paint',serviceName:'Painting touch-ups',name:'Dana Whyte',phone:'555-0105',address:'7 Quarry Hill',email:'',notes:'Asked for £250 for the hallway. The starting price is £320.',status:'pending',offer:250,priceBy:'customer',source:'sample',createdAt:1}});
   const blocks=[{id:'s_k0',data:{date:addDays(mon,4),start:15*60,dur:60,label:'Dentist'}},{id:'s_k1',data:{date:addDays(mon,9),start:9*60,dur:60,label:'Supplier pickup'}}];
   return{bookings,blocks};
 }
@@ -447,7 +463,7 @@ function slotsFor(date,dur,ignoreId){
   let earliest=open;
   if(date===todayStr()){const n=new Date();earliest=Math.max(open,Math.ceil((n.getHours()*60+n.getMinutes()+60)/STEP)*STEP)}
   if(date<todayStr())return[];
-  const bk=[...state.bookings.values()].filter(b=>b.date===date&&b.status==='booked'&&b.id!==ignoreId);
+  const bk=[...state.bookings.values()].filter(b=>b.date===date&&live(b)&&b.id!==ignoreId);
   const bl=[...state.blocks.values()].filter(k=>k.date===date);
   const out=[];
   for(let s=earliest;s+dur<=close;s+=STEP){
@@ -463,8 +479,8 @@ const log=$('#log');
 function scrollLog(){log.scrollTop=log.scrollHeight}
 function addMsg(role,text){const d=document.createElement('div');d.className='msg '+role;d.textContent=text;log.append(d);scrollLog();return d}
 function addCard(b,mailed){
-  const d=document.createElement('div');d.className='ticket';
-  d.innerHTML=`<span class="stamp">BOOKED</span><h3>${esc(b.serviceName)}</h3><div class="row">${esc(dayLong(b.date))}, ${fmt(b.start)}–${fmt(b.start+b.dur)}</div><div class="row">${esc(b.address)}</div><div class="ref">Ref ${esc(b.ref)}</div>${mailed?`<div class="row">Confirmation emailed to ${esc(b.email)}</div>`:''}`;
+  const d=document.createElement('div');d.className='ticket';const p=b.status==='pending';
+  d.innerHTML=`<span class="stamp ${p?'pend':''}">${p?'PENDING APPROVAL':'BOOKED'}</span><h3>${esc(b.serviceName)}</h3><div class="row">${esc(dayLong(b.date))}, ${fmt(b.start)}–${fmt(b.start+b.dur)}</div><div class="row">${esc(b.address)}</div>${p?`<div class="row">Your price: ${money(b.offer)}. Held for you until Keith replies.</div>`:''}<div class="ref">Ref ${esc(b.ref)}</div>${mailed?`<div class="row">${p?'Request':'Confirmation'} emailed to ${esc(b.email)}</div>`:''}`;
   log.append(d);scrollLog();
 }
 function setStatus(t){const s=$('#cstatus');if(!t){s.hidden=true;return}s.hidden=false;s.textContent=t}
@@ -489,7 +505,7 @@ Rules:
 - If the customer gives a booking reference, or wants to check, change or cancel a booking, ask for the reference plus the phone number or email used for the booking. Use find_booking to read back the service, day, time and address. Never reveal or change a booking unless the tool matches it. Then use reschedule_booking or cancel_booking, passing the same reference and phone or email, and confirm before cancelling.
 - Emergencies (active flooding, gas smell, sparking electrics): tell them to make it safe and call emergency services if needed, and give Keith's urgent line ${PHONE}. Do not book it as a normal job.
 - Dates in tool calls are YYYY-MM-DD and times are 24-hour HH:MM. When speaking to the customer, use plain day names and 12-hour times like "10:30 am".
-- Prices are in pounds sterling (£) and are starting prices; Keith confirms the final price on site.
+- Prices are in pounds sterling (£). Listed prices are starting prices. If the customer asks for a specific price, wants to negotiate, or the job needs a custom quote, pass proposed_price (a number in pounds) to book_slot. That makes the booking PENDING: the time is held, but it is not confirmed until Keith accepts the price. Tell the customer it is pending Keith's approval, never promise he will accept, and say they can check any time with their reference (and will get an email if they gave one). If they simply accept the starting price, book without proposed_price. When find_booking shows waiting_for "customer", read out Keith's suggested price and message; if the customer accepts or declines it, use respond_to_price.
 - Style: friendly, brief (under 60 words), plain text, no markdown, no bullet symbols or asterisks.`;
 };
 
@@ -499,7 +515,7 @@ const phoneMatches=(b,p)=>digits(p).length>=6&&digits(b.phone).endsWith(digits(p
 const proves=(b,i)=>phoneMatches(b,i.phone)||sameEmail(b.email,i.email);
 function ownBooking(i){
   const r=String(i.reference||'').trim().toUpperCase();
-  const b=[...state.bookings.values()].find(x=>x.ref===r&&x.status==='booked');
+  const b=[...state.bookings.values()].find(x=>x.ref===r&&live(x));
   if(!b||!proves(b,i))throw new Error('Could not match that booking. Ask the customer for the reference plus the phone number or email used when booking.');
   return b;
 }
@@ -514,7 +530,7 @@ const TOOLS=[
     return{service:sv.name,duration_minutes:sv.mins,days};
   }},
  {name:'book_slot',description:'Create a booking on Keith\'s calendar. Only call after the customer has clearly confirmed all details. Fails if the time is no longer free. Returns the reference code.',
-  inputSchema:{type:'object',properties:{service:{type:'string'},date:{type:'string',description:'YYYY-MM-DD'},time:{type:'string',description:'HH:MM, 24-hour'},name:{type:'string'},phone:{type:'string'},address:{type:'string'},email:{type:'string',description:'Customer email for the confirmation. Optional.'},notes:{type:'string'}},required:['service','date','time','name','phone','address']},
+  inputSchema:{type:'object',properties:{service:{type:'string'},date:{type:'string',description:'YYYY-MM-DD'},time:{type:'string',description:'HH:MM, 24-hour'},name:{type:'string'},phone:{type:'string'},address:{type:'string'},email:{type:'string',description:'Customer email for the confirmation. Optional.'},proposed_price:{type:'number',description:'Price in pounds the customer asks for, or that needs Keith to approve. Makes the booking pending until Keith accepts. Leave out for a normal booking at the starting price.'},notes:{type:'string'}},required:['service','date','time','name','phone','address']},
   async execute(i){
     setStatus('Booking it in…');await wait(500);
     const sv=svc(i.service),date=validDate(i.date),start=parseT(i.time);
@@ -523,12 +539,13 @@ const TOOLS=[
     if(!slotsFor(date,sv.mins).includes(start))throw new Error('That time is not available (it may have just been taken). Call find_slots again and offer other times.');
     const email=String(i.email||'').trim();
     if(email&&!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email))throw new Error('That email address does not look valid. Ask the customer to check it.');
+    const offerRaw=Number(i.proposed_price),hasOffer=Number.isFinite(offerRaw)&&offerRaw>0&&offerRaw<100000;
     const id=newId();
-    const b={ref:newRef(),date,start,dur:sv.mins,service:sv.id,serviceName:sv.name,name:String(i.name).trim(),phone:String(i.phone).trim(),address:String(i.address).trim(),email,notes:String(i.notes||'').trim(),status:'booked',source:'chat',createdAt:Date.now()};
+    const b={ref:newRef(),date,start,dur:sv.mins,service:sv.id,serviceName:sv.name,name:String(i.name).trim(),phone:String(i.phone).trim(),address:String(i.address).trim(),email,notes:String(i.notes||'').trim(),status:hasOffer?'pending':'booked',offer:hasOffer?Math.round(offerRaw*100)/100:null,priceBy:hasOffer?'customer':null,source:'chat',createdAt:Date.now()};
     mine.add(id);await save('bookings',id,b);
     state.fresh.add(id);if(state.view!=='handyman')state.unread++;
     let mail=email?'not sent':'not requested';
-    if(state.mode==='shared'){
+    if(state.mode==='shared'&&(!hasOffer||(state.workerV||1)>=2)){
       if(email)setStatus('Sending your confirmation email…');
       try{
         const r=await fetch(API+'/notify',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({id,booking:b})});
@@ -537,7 +554,7 @@ const TOOLS=[
       }catch{}
     }
     renderAll();addCard({id,...b},mail==='sent');
-    return{ok:true,reference:b.ref,service:sv.name,date,time:hhmm(start),ends:hhmm(start+sv.mins),confirmation_email:mail};
+    return{ok:true,reference:b.ref,service:sv.name,date,time:hhmm(start),ends:hhmm(start+sv.mins),status:hasOffer?'pending approval':'confirmed',proposed_price:hasOffer?b.offer:null,confirmation_email:mail};
   }},
  {name:'send_confirmation_email',description:"Email the confirmation for an existing booking, for example when the customer forgot to give an email or wants it sent again. Needs the reference plus the phone number or email used for the booking (to verify). send_to is the address to email; it is saved on the booking.",
   inputSchema:{type:'object',properties:{reference:{type:'string'},phone:{type:'string',description:'Phone number used for the booking, to verify'},email:{type:'string',description:'Email already on the booking, to verify. Optional.'},send_to:{type:'string',description:'Address to send the confirmation to'}},required:['reference','send_to']},
@@ -562,8 +579,22 @@ const TOOLS=[
   async execute(i){
     setStatus('Looking up the booking…');await wait(400);
     const r=String(i.reference||'').trim().toUpperCase();
-    const hits=[...state.bookings.values()].filter(b=>b.status==='booked'&&b.date>=todayStr()&&((r&&b.ref===r&&proves(b,i))||(phoneMatches(b,i.phone)&&sameEmail(b.email,i.email))));
-    return{matches:hits.map(b=>({reference:b.ref,service:b.serviceName,service_id:b.service,date:b.date,time:hhmm(b.start),duration_minutes:b.dur,name:b.name,address:b.address}))};
+    const hits=[...state.bookings.values()].filter(b=>live(b)&&b.date>=todayStr()&&((r&&b.ref===r&&proves(b,i))||(phoneMatches(b,i.phone)&&sameEmail(b.email,i.email))));
+    return{matches:hits.map(b=>({reference:b.ref,service:b.serviceName,service_id:b.service,date:b.date,time:hhmm(b.start),duration_minutes:b.dur,name:b.name,address:b.address,status:b.status==='pending'?'pending approval':'confirmed',price:b.offer||null,waiting_for:waitingOn(b)||null,keith_message:b.keithNote||''}))};
+  }},
+ {name:'respond_to_price',description:"The customer accepts or declines the price Keith suggested for a pending booking (find_booking shows waiting_for customer). Needs the reference plus the phone number or email used for the booking.",
+  inputSchema:{type:'object',properties:{reference:{type:'string'},phone:{type:'string'},email:{type:'string'},accept:{type:'boolean'}},required:['reference','accept']},
+  async execute(i){
+    setStatus('Updating your booking…');await wait(400);
+    const b=ownBooking(i);
+    if(b.status!=='pending'||b.priceBy!=='keith')throw new Error('Keith has not suggested a price that is waiting for a reply on this booking.');
+    const yes=i.accept===true||String(i.accept).toLowerCase()==='true';
+    const nb=yes?{...b,status:'booked',priceBy:'agreed'}:{...b,status:'cancelled'};
+    await save('bookings',b.id,nb);state.fresh.add(b.id);
+    let mail='';
+    if(yes)mail=await mailCustomer(nb);
+    renderAll();
+    return yes?{ok:true,result:'booked',price:money(b.offer),note:'Booking is now confirmed at the agreed price.'}:{ok:true,result:'cancelled'};
   }},
  {name:'cancel_booking',description:'Cancel a booking. Needs the reference plus the phone number or email used for the booking. Only after the customer confirms.',
   inputSchema:{type:'object',properties:{reference:{type:'string'},phone:{type:'string'},email:{type:'string'}},required:['reference']},
@@ -743,8 +774,9 @@ function renderAll(){
 
 /* ---------- calendar ---------- */
 const H=48;
-const evsOn=d=>({b:[...state.bookings.values()].filter(x=>x.date===d&&x.status!=='cancelled').sort((a,c)=>a.start-c.start),k:[...state.blocks.values()].filter(x=>x.date===d)});
+const evsOn=d=>({b:[...state.bookings.values()].filter(x=>x.date===d&&x.status!=='cancelled'&&x.status!=='declined').sort((a,c)=>a.start-c.start),k:[...state.blocks.values()].filter(x=>x.date===d)});
 function renderCal(){
+  renderApprovals();
   const today=todayStr(),mon=mondayOf(state.sel);
   const all=[0,1,2,3,4,5,6].map(i=>addDays(mon,i));
   let cols=all.filter(d=>{const e=evsOn(d);return state.hours.days.includes(pd(d).getDay())||e.b.length||e.k.length});
@@ -772,7 +804,7 @@ function renderCal(){
     if(close<re*60)ev.push(`<div class="closed" style="top:${px(close)}px;height:${px(re*60)-px(close)}px"></div>`);
     if(!state.hours.days.includes(pd(d).getDay()))ev.push(`<div class="closed" style="top:0;bottom:0"></div>`);
     e.k.forEach(k=>ev.push(`<button class="ev block" type="button" data-k="${esc(k.id)}" style="top:${px(k.start)}px;height:${Math.max(20,k.dur/60*H-2)}px"><span class="n">${esc(k.label||'Blocked')}</span><span class="t">${fmt(k.start)}–${fmt(k.start+k.dur)}</span></button>`));
-    e.b.forEach(b=>{const h=Math.max(20,b.dur/60*H-2);ev.push(`<button class="ev ${b.status==='done'?'done':''} ${state.fresh.has(b.id)?'new':''}" type="button" data-b="${esc(b.id)}" style="top:${px(b.start)}px;height:${h}px">${h>=40?`<span class="t">${fmt(b.start)}–${fmt(b.start+b.dur)}</span>`:''}<span class="n">${esc(b.name)}</span>${h>=80?`<span class="s">${esc(b.serviceName)}</span>`:''}</button>`)});
+    e.b.forEach(b=>{const h=Math.max(20,b.dur/60*H-2);ev.push(`<button class="ev ${b.status==='done'?'done':''} ${b.status==='pending'?'pending':''} ${state.fresh.has(b.id)?'new':''}" type="button" data-b="${esc(b.id)}" style="top:${px(b.start)}px;height:${h}px">${h>=40?`<span class="t">${fmt(b.start)}–${fmt(b.start+b.dur)}${b.status==='pending'?' · PENDING '+money(b.offer):''}</span>`:''}<span class="n">${esc(b.name)}</span>${h>=80?`<span class="s">${esc(b.serviceName)}</span>`:''}</button>`)});
     if(d===today&&nowM>=rs*60&&nowM<=re*60)ev.push(`<div class="nowline" style="top:${px(nowM)}px"></div>`);
     return `<div class="col ${d===state.sel?'sel':''} ${d===today?'today':''}"><button class="chead" type="button" data-pick="${d}"><span class="dn">${DAYN[pd(d).getDay()]}</span><span class="dd">${pd(d).getDate()}</span><span class="dc">${n} job${n===1?'':'s'}</span></button><div class="cbody" style="height:${(re-rs)*H}px">${ev.join('')}</div></div>`;
   }).join('');
@@ -793,15 +825,62 @@ ov.addEventListener('click',e=>{if(e.target===ov)closeSheet()});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!ov.hidden)closeSheet()});
 let tt;function toast(t){const el=$('#toast');el.textContent=t;el.hidden=false;clearTimeout(tt);tt=setTimeout(()=>el.hidden=true,4500)}
 
+function renderApprovals(){
+  const pend=[...state.bookings.values()].filter(b=>b.status==='pending').sort((x,y)=>(x.createdAt||0)-(y.createdAt||0));
+  const need=pend.filter(b=>b.priceBy!=='keith'),wait=pend.filter(b=>b.priceBy==='keith');
+  const item=(b,actions)=>`<div class="item"><div class="top"><div><b>${esc(b.name)}</b> · ${esc(b.serviceName)}<br><small class="mono">${esc(dayLong(b.date))}, ${fmt(b.start)}–${fmt(b.start+b.dur)} · ${esc(b.ref)}</small></div><div class="price">${b.offer?money(b.offer):'No price'}</div></div>${b.notes?`<div style="color:var(--muted);font-size:14px">${esc(b.notes)}</div>`:''}${actions}</div>`;
+  let h='';
+  if(need.length)h+=`<section class="appr"><h2>Needs your approval <span class="badge">${need.length}</span></h2>${need.map(b=>item(b,`<div class="btns"><button class="btn pine sm" type="button" data-act="accept" data-id="${esc(b.id)}">Accept ${money(b.offer)}</button><button class="btn sm" type="button" data-act="counter" data-id="${esc(b.id)}">Counter-offer</button><button class="btn danger sm" type="button" data-act="decline" data-id="${esc(b.id)}">Decline</button></div>`)).join('')}</section>`;
+  if(wait.length)h+=`<section class="appr wait"><h2>Waiting for the customer <span class="pill">${wait.length}</span></h2>${wait.map(b=>item(b,`<div style="font-size:14px;color:var(--muted)">You suggested ${money(b.offer)}${b.keithNote?': '+esc(b.keithNote):''}. The time is held.</div>`)).join('')}</section>`;
+  $('#approvals').innerHTML=h;
+}
+$('#approvals').addEventListener('click',e=>{const t=e.target.closest('[data-act]');if(t)act(t.dataset.act,t.dataset.id)});
+function act(kind,id){if(kind==='accept')decide(id,'accept');else if(kind==='counter')openCounter(id);else openDecline(id)}
+async function mailCustomer(nb){
+  if(!nb.email)return ' No email on file, so contact the customer another way.';
+  if(state.mode!=='shared'||(state.workerV||1)<2)return ' The customer was not emailed (update the Worker for price emails).';
+  try{
+    const r=await fetch(API+'/notify',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({id:nb.id,booking:nb,resend:true})});
+    const j=await r.json().catch(()=>({}));
+    return r.ok&&j.sent?' Customer emailed.':' The email could not be sent.';
+  }catch{return ' The email could not be sent.'}
+}
+async function decide(id,kind,x){
+  const b=state.bookings.get(id);if(!b)return;
+  let nb,msg;
+  if(kind==='accept'){nb={...b,status:'booked',priceBy:'agreed',keithNote:''};msg='Accepted '+money(b.offer)+'. Booking confirmed.'}
+  else if(kind==='counter'){nb={...b,offer:x.amount,priceBy:'keith',keithNote:x.note||''};msg='Counter-offer of '+money(x.amount)+' sent.'}
+  else{nb={...b,status:'declined',keithNote:(x&&x.note)||''};msg='Booking declined. The time is free again.'}
+  await save('bookings',id,nb);closeSheet();renderAll();
+  toast(msg+await mailCustomer(nb));
+}
+function openCounter(id){
+  const b=state.bookings.get(id);if(!b)return;
+  const sh=openSheet(`<h2>Counter-offer</h2><p style="color:var(--muted)">${esc(b.name)} asked for ${money(b.offer)}. Their time stays held until they accept.</p><label>Your price (£)<input id="cAmt" type="number" min="1" step="1" inputmode="decimal" value="${esc(b.offer||'')}"></label><label>Message to the customer (optional)<input id="cMsg" maxlength="200" placeholder="For example: includes materials"></label><div class="btns"><button class="btn accent" type="button" id="cGo">Send counter-offer</button><button class="btn ghost" type="button" id="cX">Back</button></div>`);
+  sh.querySelector('#cX').onclick=()=>openBooking(id);
+  sh.querySelector('#cGo').onclick=()=>{const a=Math.round(Number(sh.querySelector('#cAmt').value)*100)/100;if(!(a>0)){toast('Enter a price');return}decide(id,'counter',{amount:a,note:sh.querySelector('#cMsg').value.trim().slice(0,200)})};
+}
+function openDecline(id){
+  const b=state.bookings.get(id);if(!b)return;
+  const sh=openSheet(`<h2>Decline this booking?</h2><p style="color:var(--muted)">${esc(b.name)}'s time is released and they are told it was declined.</p><label>Reason for the customer (optional)<input id="dMsg" maxlength="200" placeholder="For example: too far outside my area"></label><div class="btns"><button class="btn danger" type="button" id="dGo">Decline booking</button><button class="btn ghost" type="button" id="dX">Back</button></div>`);
+  sh.querySelector('#dX').onclick=()=>openBooking(id);
+  sh.querySelector('#dGo').onclick=()=>decide(id,'decline',{note:sh.querySelector('#dMsg').value.trim().slice(0,200)});
+}
 function openBooking(id){
   const b=state.bookings.get(id);if(!b)return;
-  const sh=openSheet(`<div><span class="pill">${b.status==='done'?'Completed':'Booked'} · ${esc(b.source==='chat'?'via chat assistant':b.source==='sample'?'sample job':'manual')}</span></div><h2>${esc(b.serviceName)}</h2>
-  <dl><dt>When</dt><dd>${esc(dayLong(b.date))}<br>${fmt(b.start)}–${fmt(b.start+b.dur)}</dd><dt>Customer</dt><dd>${esc(b.name)}</dd><dt>Phone</dt><dd class="mono">${esc(b.phone)}</dd>${b.email?`<dt>Email</dt><dd class="mono">${esc(b.email)}</dd>`:''}<dt>Address</dt><dd>${esc(b.address)}</dd><dt>Notes</dt><dd>${esc(b.notes||'None')}</dd><dt>Reference</dt><dd class="mono">${esc(b.ref)}</dd></dl>
-  <div class="btns">${b.status==='booked'?'<button class="btn pine" type="button" id="sDone">Mark complete</button>':''}<button class="btn danger" type="button" id="sCancel">Cancel job</button><button class="btn ghost" type="button" id="sClose">Close</button></div>`);
+  const label={pending:'Pending approval',booked:'Booked',done:'Completed',declined:'Declined',cancelled:'Cancelled'}[b.status]||b.status;
+  const forKeith=b.status==='pending'&&b.priceBy!=='keith';
+  const priceRow=b.offer?`<dt>Price</dt><dd>${money(b.offer)} ${b.status==='pending'?(b.priceBy==='keith'?'(your counter-offer, waiting for the customer)':"(the customer's offer)"):b.priceBy==='agreed'?'(agreed)':''}</dd>`:'';
+  const noteRow=b.keithNote?`<dt>Your note</dt><dd>${esc(b.keithNote)}</dd>`:'';
+  const sh=openSheet(`<div><span class="pill">${label} · ${esc(b.source==='chat'?'via chat assistant':b.source==='sample'?'sample job':'manual')}</span></div><h2>${esc(b.serviceName)}</h2>
+  <dl><dt>When</dt><dd>${esc(dayLong(b.date))}<br>${fmt(b.start)}–${fmt(b.start+b.dur)}</dd><dt>Customer</dt><dd>${esc(b.name)}</dd><dt>Phone</dt><dd class="mono">${esc(b.phone)}</dd>${b.email?`<dt>Email</dt><dd class="mono">${esc(b.email)}</dd>`:''}<dt>Address</dt><dd>${esc(b.address)}</dd>${priceRow}${noteRow}<dt>Notes</dt><dd>${esc(b.notes||'None')}</dd><dt>Reference</dt><dd class="mono">${esc(b.ref)}</dd></dl>
+  <div class="btns">${forKeith?'<button class="btn pine" type="button" id="sAcc">Accept '+money(b.offer)+'</button><button class="btn" type="button" id="sCounter">Counter-offer</button><button class="btn danger" type="button" id="sDecl">Decline</button>':''}${b.status==='booked'?'<button class="btn pine" type="button" id="sDone">Mark complete</button>':''}${live(b)?'<button class="btn danger" type="button" id="sCancel">Cancel job</button>':''}<button class="btn ghost" type="button" id="sClose">Close</button></div>`);
   sh.querySelector('#sClose').onclick=closeSheet;
-  const d=sh.querySelector('#sDone');if(d)d.onclick=async()=>{await save('bookings',id,{...b,status:'done'});closeSheet();renderAll();toast('Marked complete')};
+  const on=(sel,fn)=>{const el=sh.querySelector(sel);if(el)el.onclick=fn};
+  on('#sAcc',()=>decide(id,'accept'));on('#sCounter',()=>openCounter(id));on('#sDecl',()=>openDecline(id));
+  on('#sDone',async()=>{await save('bookings',id,{...b,status:'done'});closeSheet();renderAll();toast('Marked complete')});
   const c=sh.querySelector('#sCancel');let armed=false;
-  c.onclick=async()=>{if(!armed){armed=true;c.textContent='Tap again to cancel this job';return}await save('bookings',id,{...b,status:'cancelled'});closeSheet();renderAll();toast('Job cancelled. The slot is open again.')};
+  if(c)c.onclick=async()=>{if(!armed){armed=true;c.textContent='Tap again to cancel this job';return}await save('bookings',id,{...b,status:'cancelled'});closeSheet();renderAll();toast('Job cancelled. The slot is open again.')};
 }
 function openBlock(id){
   const k=state.blocks.get(id);if(!k)return;
@@ -862,10 +941,14 @@ async function pull(){
   if(!r.ok)throw new Error('state '+r.status);
   const s=await r.json();
   if(startRev!==rev||inflight)return s;
-  const prev=new Set(state.bookings.keys()),wasReady=state.ready;
-  state.bookings=objMap(s.bookings);state.blocks=objMap(s.blocks);
+  const old=state.bookings,wasReady=state.ready;
+  state.bookings=objMap(s.bookings);state.blocks=objMap(s.blocks);state.workerV=s.v||1;
   if(s.hours&&s.hours.start!=null)state.hours=s.hours;
-  if(wasReady)state.bookings.forEach((b,id)=>{if(!prev.has(id)&&!mine.has(id)&&b.source==='chat'){state.fresh.add(id);if(state.view!=='handyman')state.unread++;toast(`New booking: ${b.name}, ${dayLong(b.date)} ${fmt(b.start)}`)}});
+  if(wasReady)state.bookings.forEach((b,id)=>{
+    const o=old.get(id);
+    if(!o&&!mine.has(id)&&b.source==='chat'){state.fresh.add(id);if(state.view!=='handyman')state.unread++;toast(b.status==='pending'?`Price approval needed: ${b.name}, ${money(b.offer)}`:`New booking: ${b.name}, ${dayLong(b.date)} ${fmt(b.start)}`)}
+    else if(o&&o.status==='pending'&&b.status==='booked'&&b.priceBy==='agreed'&&!mine.has(id)){state.fresh.add(id);toast(`${b.name} accepted ${money(b.offer)}. Booking confirmed.`)}
+  });
   return s;
 }
 function startLocal(){
