@@ -80,32 +80,39 @@ export default {
       let b;
       try { b = JSON.parse(raw); } catch { return json({ error: 'bad json' }, 400); }
       const k = b.booking || {};
+      const hasEmail = /^[^\s@]{1,64}@[^\s@]{1,100}\.[^\s@]{2,20}$/.test(k.email || '');
       const ok = typeof b.id === 'string' && /^[\w.-]{1,60}$/.test(b.id)
         && /^\d{4}-\d{2}-\d{2}$/.test(k.date || '') && Number.isFinite(k.start) && Number.isFinite(k.dur)
-        && /^[^\s@]{1,64}@[^\s@]{1,100}\.[^\s@]{2,20}$/.test(k.email || '');
+        && (hasEmail || !k.email);
       if (!ok) return json({ sent: false, reason: 'bad booking' }, 400);
-      if (await env.STATE.get('mailed:' + b.id)) return json({ sent: false, reason: 'already sent' });
+      if (!hasEmail && !env.KEITH_EMAIL) return json({ sent: false, reason: 'no email given' });
+      const before = Number(await env.STATE.get('mailed:' + b.id)) || 0;
+      if (before && !b.resend) return json({ sent: false, reason: 'already sent' });
+      if (before >= 3) return json({ sent: false, reason: 'limit for this booking' });
       const day = new Date().toISOString().slice(0, 10);
       const cap = Number(env.EMAIL_DAILY_CAP) || 20;
       const used = Number(await env.STATE.get('mailcount:' + day)) || 0;
-      const need = env.KEITH_EMAIL ? 2 : 1;
+      const keithCopy = !!env.KEITH_EMAIL && before === 0;
+      const need = (hasEmail ? 1 : 0) + (keithCopy ? 1 : 0);
       if (used + need > cap) return json({ sent: false, reason: 'daily limit reached' });
       await env.STATE.put('mailcount:' + day, String(used + need), { expirationTtl: 172800 });
       const when = fmtDate(k.date) + ', ' + fmtTime(k.start) + ' to ' + fmtTime(k.start + k.dur);
       const clean = (v, n) => String(v ?? '').replace(/[\r\n]+/g, ' ').slice(0, n);
-      const sent = await sendMail(env, k.email, 'Your booking with Keith\'s Handyman Services (' + clean(k.ref, 12) + ')',
-        'Hi ' + clean(k.name, 80) + ',\n\nYour booking with Keith\'s Handyman Services is confirmed.\n\n'
-        + 'Service: ' + clean(k.serviceName, 80) + '\nWhen: ' + when + '\nWhere: ' + clean(k.address, 160) + '\nReference: ' + clean(k.ref, 12)
-        + '\n\nTo change or cancel, message the chat on the website with your reference.\n\nThis is a demo booking. No visit will take place.\n');
-      if (!sent) return json({ sent: false, reason: 'mail service failed' }, 502);
-      await env.STATE.put('mailed:' + b.id, '1', { expirationTtl: 604800 });
-      if (env.KEITH_EMAIL) {
+      if (hasEmail) {
+        const sent = await sendMail(env, k.email, 'Your booking with Keith\'s Handyman Services (' + clean(k.ref, 12) + ')',
+          'Hi ' + clean(k.name, 80) + ',\n\nYour booking with Keith\'s Handyman Services is confirmed.\n\n'
+          + 'Service: ' + clean(k.serviceName, 80) + '\nWhen: ' + when + '\nWhere: ' + clean(k.address, 160) + '\nReference: ' + clean(k.ref, 12)
+          + '\n\nTo change or cancel, message the chat on the website with your reference.\n\nThis is a demo booking. No visit will take place.\n');
+        if (!sent) return json({ sent: false, reason: 'mail service failed' }, 502);
+      }
+      await env.STATE.put('mailed:' + b.id, String(before + 1), { expirationTtl: 604800 });
+      if (keithCopy) {
         await sendMail(env, env.KEITH_EMAIL, 'New booking: ' + clean(k.name, 60) + ', ' + fmtDate(k.date) + ' ' + fmtTime(k.start),
-          'New demo booking\n\nCustomer: ' + clean(k.name, 80) + '\nPhone: ' + clean(k.phone, 40) + '\nEmail: ' + k.email
+          'New demo booking\n\nCustomer: ' + clean(k.name, 80) + '\nPhone: ' + clean(k.phone, 40) + '\nEmail: ' + (hasEmail ? k.email : '(none given)')
           + '\nService: ' + clean(k.serviceName, 80) + '\nWhen: ' + when + '\nWhere: ' + clean(k.address, 160)
           + '\nNotes: ' + clean(k.notes, 300) + '\nReference: ' + clean(k.ref, 12) + '\n');
       }
-      return json({ sent: true });
+      return json({ sent: hasEmail });
     }
 
     return json({ error: 'not found' }, 404);
