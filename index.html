@@ -112,7 +112,7 @@ button{font:inherit;color:inherit}
 .cform .mic.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);animation:micpulse 1.4s infinite}
 @keyframes micpulse{0%{box-shadow:0 0 0 0 var(--accent)}70%{box-shadow:0 0 0 9px transparent}100%{box-shadow:0 0 0 0 transparent}}
 .log .hear{align-self:flex-start;margin-top:-4px}
-.vhint{padding:0 16px 10px;font-size:12px;color:var(--muted);margin:0}
+.vrow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:0 16px 10px;font-size:12px;color:var(--muted)}
 .ticket{align-self:flex-start;max-width:92%;background:var(--surface);border:1px solid var(--ink);border-radius:6px;padding:12px 14px;display:grid;gap:4px;position:relative}
 .ticket::before,.ticket::after{content:"";position:absolute;top:50%;width:12px;height:12px;border-radius:50%;background:var(--surface2);border:1px solid var(--ink);transform:translateY(-50%)}
 .ticket::before{left:-7px}.ticket::after{right:-7px}
@@ -278,7 +278,7 @@ img{max-width:100%}
           <button id="csend" class="btn accent" type="submit">Send</button>
           <button id="cstop" class="btn ghost" type="button" hidden>Stop</button>
         </form>
-        <p class="vhint" id="vhint" hidden>Tap the mic to talk. Your browser turns speech into text, and Chrome sends the audio to Google to do it.</p>
+        <div class="vrow" id="vrow" hidden><button id="cspk" class="btn sm ghost" type="button" aria-pressed="false">Read replies aloud: off</button><span>Tap the mic to talk. Chrome sends the audio to Google to turn it into text.</span></div>
       </section>
     </div>
   </section>
@@ -621,7 +621,7 @@ async function send(text){
     }
     if(!reply)throw{code:'empty'};
     bubble.textContent=reply;chat.turns.push({role:'assistant',content:reply});
-    if(voice)speak(reply,bubble);
+    if(voice){if(readAloud&&'speechSynthesis' in window)speak(reply,bubble);else setTimeout(listen,250)}
   }catch(e){
     if(voice)stopVoice();
     bubble.remove();
@@ -635,27 +635,48 @@ $('#cstop').addEventListener('click',()=>{stopVoice();chat.ctl&&chat.ctl.abort()
 
 /* ---------- voice: talk to the assistant and hear its replies ---------- */
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-const mic=$('#cmic');
+const mic=$('#cmic'),spk=$('#cspk');
 let voice=false,rec=null,heard='';
-if(SR&&'speechSynthesis' in window){mic.hidden=false;$('#vhint').hidden=false}
+let readAloud=!(window.matchMedia&&matchMedia('(pointer:coarse)').matches);
+if(SR){mic.hidden=false;$('#vrow').hidden=false}
+function showSpk(){spk.setAttribute('aria-pressed',String(readAloud));spk.textContent='Read replies aloud: '+(readAloud?'on':'off')}
+if('speechSynthesis' in window)showSpk();else spk.hidden=true;
+// Phones only allow speech that a tap has unlocked, so the unlock lives on its own button, apart from the mic.
+spk.addEventListener('click',()=>{
+  readAloud=!readAloud;showSpk();
+  try{speechSynthesis.cancel();if(readAloud){const k=new SpeechSynthesisUtterance(' ');k.volume=0;speechSynthesis.speak(k)}}catch{}
+});
 function stopVoice(note){
   voice=false;mic.setAttribute('aria-pressed','false');mic.classList.remove('on');
   try{rec&&rec.abort()}catch{}
   try{speechSynthesis.cancel()}catch{}
   if(!chat.busy)setStatus(note||'');
 }
-function listen(){
+function listen(lang){
   if(!voice||chat.busy)return;
-  rec=new SR();rec.lang='en-GB';rec.interimResults=true;rec.continuous=false;heard='';
-  rec.onresult=e=>{heard=Array.from(e.results).map(r=>r[0].transcript).join('');$('#cin').value=heard};
-  rec.onerror=e=>{
-    if(e.error==='aborted')return;
-    if(e.error==='not-allowed'||e.error==='service-not-allowed'){stopVoice();addMsg('err','The microphone is blocked. Allow it for this site in your browser, then tap the mic again.');return}
-    stopVoice(e.error==='no-speech'?"Didn't catch that. Tap the mic to try again.":'Voice stopped. Tap the mic to try again.');
+  const r=new SR();rec=r;r.lang=lang||'en-GB';r.interimResults=true;r.continuous=false;heard='';
+  let alive=false,dead=false,watch=null,idle=null;
+  const clear=()=>{clearTimeout(watch);clearTimeout(idle)};
+  const up=()=>{alive=true;clearTimeout(watch);setStatus('Listening…')};
+  r.onstart=up;r.onaudiostart=up;
+  r.onspeechstart=()=>{up();setStatus('Hearing you…')};
+  r.onresult=e=>{
+    up();heard=Array.from(e.results).map(x=>x[0].transcript).join('');$('#cin').value=heard;
+    const last=e.results[e.results.length-1];if(last&&last.isFinal){try{r.stop()}catch{}}
   };
-  rec.onend=()=>{if(!voice)return;const t=heard.trim();if(t)send(t);else stopVoice("Didn't catch that. Tap the mic to try again.")};
-  setStatus('Listening…');
-  try{rec.start()}catch{stopVoice()}
+  r.onerror=e=>{
+    clear();if(e.error==='aborted'||dead)return;dead=true;
+    if(e.error==='language-not-supported'&&!lang){listen(navigator.language||'en-US');return}
+    if(e.error==='not-allowed'||e.error==='service-not-allowed'){stopVoice();addMsg('err','The microphone is blocked. Allow it for this site in your browser settings, then tap the mic again.');return}
+    if(e.error==='audio-capture'){stopVoice();addMsg('err','No microphone was found, or another app is using it.');return}
+    if(e.error==='network'){stopVoice();addMsg('err','Voice needs an internet connection, and some phone browsers cannot do speech recognition. Try Chrome, or type instead.');return}
+    stopVoice(e.error==='no-speech'?"Didn't catch that. Tap the mic to try again.":'Voice stopped ('+e.error+'). Tap the mic to try again.');
+  };
+  r.onend=()=>{clear();if(dead||!voice)return;const t=heard.trim();if(t)send(t);else stopVoice("Didn't catch that. Tap the mic to try again.")};
+  setStatus('Starting the microphone…');
+  watch=setTimeout(()=>{if(!alive&&!dead){dead=true;stopVoice('The microphone did not start. Check the browser may use it, or type instead.');}},6000);
+  idle=setTimeout(()=>{try{r.stop()}catch{}},15000);
+  try{r.start()}catch{dead=true;clear();stopVoice('Could not start the microphone.')}
 }
 function utter(text){
   const u=new SpeechSynthesisUtterance(text.replace(/KH-([A-Z0-9])([A-Z0-9])([A-Z0-9])([A-Z0-9])/g,'K H, $1 $2 $3 $4'));
@@ -663,9 +684,9 @@ function utter(text){
   const v=(speechSynthesis.getVoices()||[]).find(x=>/en-GB/i.test(x.lang));if(v)u.voice=v;
   return u;
 }
-// Phones can refuse speech that does not start from a tap. If that happens, offer a button and keep the conversation going.
+// If a phone still refuses to speak, offer a button and keep the conversation going.
 function hearButton(bubble,text){
-  if(!bubble||bubble.nextElementSibling&&bubble.nextElementSibling.classList.contains('hear'))return;
+  if(!bubble||(bubble.nextElementSibling&&bubble.nextElementSibling.classList.contains('hear')))return;
   const b=document.createElement('button');b.type='button';b.className='btn sm hear';b.textContent='Tap to hear this';
   b.onclick=()=>{try{speechSynthesis.cancel();speechSynthesis.speak(utter(text))}catch{}};
   bubble.after(b);scrollLog();
@@ -683,8 +704,6 @@ function speak(text,bubble){
 mic.addEventListener('click',()=>{
   if(voice){stopVoice();return}
   voice=true;mic.setAttribute('aria-pressed','true');mic.classList.add('on');
-  // Speak a silent word during the tap so the phone allows the assistant's replies later.
-  try{speechSynthesis.cancel();const k=new SpeechSynthesisUtterance(' ');k.volume=0;speechSynthesis.speak(k)}catch{}
   $('#chips').hidden=true;listen();
 });
 $('#cin').addEventListener('input',()=>{if(voice&&!chat.busy)stopVoice()});
