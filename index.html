@@ -1,0 +1,773 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Keith's Handyman Booking</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,500..900&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Sans+3:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: a mock local-trade website (hero with live chat, services, steps, reviews) under a slim demo bar that flips to the handyman's calendar. */
+:root{
+  --bg:#F2F4F0; --surface:#FFFFFF; --surface2:#E8ECE6; --ink:#14221E; --muted:#56655F; --line:#D3DAD1;
+  --pine:#1D4A3C; --pine-ink:#F2F7F4; --accent:#C84F0E; --accent-ink:#FFFFFF;
+  --ok:#2E7D4F; --danger:#B3261E; --now:#D1342B;
+  --bar-bg:#14221E; --bar-fg:#E9F0EC; --bar-on:#F2F4F0; --bar-on-fg:#14221E;
+  --job:#1D4A3C; --job-ink:#F2F7F4; --done:#D9E0D7; --done-ink:#4A5A54;
+  --f-display:'Archivo','Arial Narrow',Arial,sans-serif; --f-body:'Source Sans 3',system-ui,sans-serif; --f-mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E1613; --surface:#16211D; --surface2:#1F2D28; --ink:#E6EEE9; --muted:#9AAAA3; --line:#2D3D37;
+  --pine:#2B6A57; --pine-ink:#F2F7F4; --accent:#F0793A; --accent-ink:#1A0E06;
+  --ok:#5CBF86; --danger:#F0877F; --now:#F0877F;
+  --bar-bg:#050A08; --bar-fg:#C9D6D0; --bar-on:#E6EEE9; --bar-on-fg:#0E1613;
+  --job:#2B6A57; --job-ink:#F2F7F4; --done:#24332E; --done-ink:#9AAAA3; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E1613; --surface:#16211D; --surface2:#1F2D28; --ink:#E6EEE9; --muted:#9AAAA3; --line:#2D3D37;
+  --pine:#2B6A57; --pine-ink:#F2F7F4; --accent:#F0793A; --accent-ink:#1A0E06;
+  --ok:#5CBF86; --danger:#F0877F; --now:#F0877F;
+  --bar-bg:#050A08; --bar-fg:#C9D6D0; --bar-on:#E6EEE9; --bar-on-fg:#0E1613;
+  --job:#2B6A57; --job-ink:#F2F7F4; --done:#24332E; --done-ink:#9AAAA3; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.5}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--bar-bg);z-index:60}
+h1,h2,h3{font-family:var(--f-display);font-stretch:112%;font-weight:800;letter-spacing:-.01em;line-height:1.08;margin:0;text-wrap:balance}
+p{margin:0}
+button{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.mono{font-family:var(--f-mono)}
+.label{font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.ruler{height:12px;background:
+  repeating-linear-gradient(90deg,var(--ink) 0 1.5px,transparent 1.5px 40px) 0 0/100% 12px no-repeat,
+  repeating-linear-gradient(90deg,var(--muted) 0 1px,transparent 1px 8px) 0 100%/100% 6px no-repeat;opacity:.55}
+
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:10px 16px;font-weight:600;cursor:pointer;min-height:44px}
+.btn:hover{border-color:var(--ink)}
+.btn.accent{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.accent:hover{filter:brightness(1.07)}
+.btn.pine{background:var(--pine);border-color:var(--pine);color:var(--pine-ink)}
+.btn.ghost{background:transparent}
+.btn.danger{color:var(--danger);border-color:var(--danger)}
+.btn.sm{min-height:36px;padding:6px 12px;font-size:14px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* demo bar */
+.demo{position:sticky;top:env(safe-area-inset-top,0px);z-index:50;background:var(--bar-bg);color:var(--bar-fg)}
+.demo .wrap{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding-block:8px}
+.demo .tag{font-family:var(--f-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;opacity:.8}
+.seg{display:flex;background:rgba(255,255,255,.1);border-radius:8px;padding:3px;gap:2px}
+.seg button{border:0;background:transparent;color:var(--bar-fg);padding:7px 14px;border-radius:6px;font-weight:600;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:8px;min-height:36px}
+.seg button[aria-pressed="true"]{background:var(--bar-on);color:var(--bar-on-fg)}
+.badge{background:var(--accent);color:var(--accent-ink);border-radius:99px;font-size:12px;font-weight:700;min-width:20px;height:20px;padding:0 6px;display:inline-flex;align-items:center;justify-content:center}
+.demo .note{margin-left:auto;font-size:13px;opacity:.85}
+.demo .note b{color:#FFB98A}
+
+/* site header */
+.site-h{border-bottom:1px solid var(--line);background:var(--surface)}
+.site-h .wrap{display:flex;align-items:center;gap:20px;padding-block:14px;flex-wrap:wrap}
+.logo{display:flex;flex-direction:column;gap:2px}
+.logo b{font-family:var(--f-display);font-stretch:120%;font-weight:900;font-size:24px;letter-spacing:.01em;line-height:1}
+.logo span{font-family:var(--f-mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
+.site-h nav{display:flex;gap:18px;margin-left:auto;align-items:center}
+.site-h nav button{background:none;border:0;cursor:pointer;font-weight:600;padding:8px 0}
+.site-h nav button:hover{color:var(--accent)}
+.phone{font-family:var(--f-mono);font-weight:600;font-size:14px}
+
+/* hero */
+.hero{padding-block:44px 52px}
+.hero .wrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,520px);gap:40px;align-items:start}
+.hero h1{font-size:clamp(38px,6vw,68px)}
+.hero .lede{font-size:19px;max-width:34ch;margin-top:18px;color:var(--muted)}
+.specs{display:flex;flex-direction:column;gap:0;margin-top:28px;max-width:420px;border-top:1px solid var(--ink)}
+.specs div{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);font-family:var(--f-mono);font-size:13px}
+.specs span{color:var(--muted)}
+.specs b{font-weight:600;text-align:right}
+
+/* chat */
+.chat{background:var(--surface);border:1px solid var(--line);border-radius:14px;display:flex;flex-direction:column;height:min(640px,calc(100vh - 120px));min-height:520px;box-shadow:0 12px 30px -18px rgba(10,30,20,.35);overflow:hidden}
+.chat-h{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:2px}
+.chat-h b{font-family:var(--f-display);font-stretch:112%;font-weight:800;font-size:18px}
+.live{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:7px}
+.live i{width:8px;height:8px;border-radius:50%;background:var(--ok);display:inline-block}
+.log{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;min-height:0}
+.msg{max-width:88%;padding:10px 14px;border-radius:14px;white-space:pre-wrap;overflow-wrap:anywhere}
+.msg.bot{background:var(--surface2);border-bottom-left-radius:4px;align-self:flex-start}
+.msg.user{background:var(--pine);color:var(--pine-ink);border-bottom-right-radius:4px;align-self:flex-end}
+.msg.err{background:transparent;border:1px dashed var(--danger);color:var(--danger);font-size:14px}
+.dots{display:inline-flex;gap:4px;padding:4px 0}
+.dots i{width:7px;height:7px;border-radius:50%;background:var(--muted);animation:b 1.1s infinite ease-in-out}
+.dots i:nth-child(2){animation-delay:.15s}.dots i:nth-child(3){animation-delay:.3s}
+@keyframes b{0%,80%,100%{opacity:.3;transform:translateY(0)}40%{opacity:1;transform:translateY(-3px)}}
+.chips{display:flex;flex-wrap:wrap;gap:8px;padding:0 16px 12px}
+.chips button{border:1px solid var(--line);background:var(--bg);border-radius:99px;padding:7px 13px;font-size:14px;cursor:pointer}
+.chips button:hover{border-color:var(--accent);color:var(--accent)}
+.cstatus{padding:0 16px 8px;font-size:13px;color:var(--muted);font-family:var(--f-mono)}
+.cform{display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--line);padding-bottom:max(12px,env(safe-area-inset-bottom,0px))}
+.cform input{flex:1;min-width:0;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;padding:0 14px;min-height:44px;font:inherit}
+.ticket{align-self:flex-start;max-width:92%;background:var(--surface);border:1px solid var(--ink);border-radius:6px;padding:12px 14px;display:grid;gap:4px;position:relative}
+.ticket::before,.ticket::after{content:"";position:absolute;top:50%;width:12px;height:12px;border-radius:50%;background:var(--surface2);border:1px solid var(--ink);transform:translateY(-50%)}
+.ticket::before{left:-7px}.ticket::after{right:-7px}
+.ticket .stamp{font-family:var(--f-mono);font-size:11px;letter-spacing:.14em;color:var(--ok);font-weight:600}
+.ticket h3{font-size:17px}
+.ticket .row{font-size:14px;color:var(--muted)}
+.ticket .ref{font-family:var(--f-mono);font-size:13px}
+
+/* sections */
+section.block{padding-block:56px;border-top:1px solid var(--line)}
+section.block > .wrap > .head{display:grid;gap:12px;margin-bottom:28px;max-width:520px}
+section.block h2{font-size:clamp(28px,4vw,40px)}
+.svc{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px}
+.svc article{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px;display:flex;flex-direction:column;gap:10px}
+.svc h3{font-size:19px}
+.svc p{color:var(--muted);font-size:15px;flex:1}
+.svc .meta{display:flex;justify-content:space-between;font-family:var(--f-mono);font-size:13px;border-top:1px dashed var(--line);padding-top:10px}
+.svc .meta b{font-weight:600}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:28px;counter-reset:s}
+.steps div{border-top:2px solid var(--ink);padding-top:14px}
+.steps b{font-family:var(--f-mono);font-size:13px;color:var(--accent)}
+.steps h3{font-size:20px;margin:6px 0}
+.steps p{color:var(--muted)}
+.reviews{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+.reviews blockquote{margin:0;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:20px;display:flex;flex-direction:column;gap:14px;justify-content:space-between}
+.reviews cite{font-style:normal;font-family:var(--f-mono);font-size:13px;color:var(--muted)}
+footer{background:var(--pine);color:var(--pine-ink);padding-block:36px}
+footer .wrap{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:24px}
+footer h3{font-size:16px;margin-bottom:8px}
+footer p{opacity:.85;font-size:15px}
+
+/* handyman view */
+.hm{padding-block:28px 56px}
+.hm-top{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between;margin-bottom:20px}
+.hm-top h1{font-size:clamp(28px,4vw,40px)}
+.hm-top p{color:var(--muted);margin-top:6px}
+.hm-actions{display:flex;gap:8px;flex-wrap:wrap}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:0;border:1px solid var(--line);border-radius:10px;background:var(--surface);margin-bottom:16px}
+.stats div{padding:14px 16px;border-right:1px solid var(--line);display:grid;gap:2px;min-width:0}
+.stats div:last-child{border-right:0}
+.stats b{font-family:var(--f-display);font-stretch:112%;font-size:24px;font-weight:800;overflow-wrap:anywhere}
+.stats small{color:var(--muted);font-size:13px}
+.weekbar{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.weekbar .title{font-family:var(--f-display);font-stretch:112%;font-weight:800;font-size:18px;margin-right:auto}
+.dstrip{display:none;gap:6px;margin-bottom:12px}
+.dstrip button{flex:1;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 2px;cursor:pointer;display:grid;gap:0;text-align:center;min-width:0}
+.dstrip button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.dstrip small{font-family:var(--f-mono);font-size:11px;opacity:.8}
+.cal{display:grid;grid-template-columns:50px minmax(0,1fr);border:1px solid var(--line);border-radius:12px;background:var(--surface);overflow:hidden}
+.gut{border-right:1px solid var(--line);position:relative}
+.gut .sp{height:56px;border-bottom:1px solid var(--line)}
+.gut .gb{position:relative}
+.gut span{position:absolute;right:6px;font-family:var(--f-mono);font-size:11px;color:var(--muted);transform:translateY(-50%)}
+.cols{display:grid;min-width:0}
+.col{border-right:1px solid var(--line);min-width:0}
+.col:last-child{border-right:0}
+.chead{width:100%;height:56px;border:0;border-bottom:1px solid var(--line);background:transparent;cursor:pointer;display:grid;grid-template-columns:auto auto;justify-content:center;align-content:center;column-gap:8px;row-gap:0;text-align:center}
+.chead .dn{font-family:var(--f-mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);align-self:end}
+.chead .dd{font-family:var(--f-display);font-stretch:112%;font-weight:800;font-size:20px;line-height:1}
+.chead .dc{grid-column:1/3;font-size:12px;color:var(--muted)}
+.col.today .chead .dd{color:var(--accent)}
+.col.sel .chead{background:var(--surface2)}
+.cbody{position:relative;background-image:linear-gradient(var(--line) 1px,transparent 1px);background-size:100% 48px}
+.closed{position:absolute;left:0;right:0;background:repeating-linear-gradient(135deg,transparent 0 6px,var(--surface2) 6px 7px);opacity:.9;pointer-events:none}
+.ev{position:absolute;left:3px;right:3px;border:0;border-radius:6px;padding:4px 7px;text-align:left;cursor:pointer;overflow:hidden;font-size:12px;line-height:1.25;display:flex;flex-direction:column;background:var(--job);color:var(--job-ink)}
+.ev .t{font-family:var(--f-mono);font-size:11px;opacity:.85}
+.ev .n{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ev .s{opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ev.done{background:var(--done);color:var(--done-ink)}
+.ev.block{background:var(--surface);color:var(--ink);border:1px solid var(--muted);background-image:repeating-linear-gradient(45deg,transparent 0 6px,var(--line) 6px 8px)}
+.ev.new{animation:pop 1.6s ease-out 3}
+@keyframes pop{0%{box-shadow:0 0 0 0 var(--accent)}70%{box-shadow:0 0 0 8px transparent}100%{box-shadow:0 0 0 0 transparent}}
+.nowline{position:absolute;left:0;right:0;height:2px;background:var(--now);z-index:2;pointer-events:none}
+.nowline::before{content:"";position:absolute;left:-1px;top:-3px;width:8px;height:8px;border-radius:50%;background:var(--now)}
+.empty{border:1px dashed var(--line);border-radius:10px;padding:16px;margin-bottom:16px;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:var(--surface)}
+.hint{color:var(--muted);font-size:14px;margin-top:12px}
+
+/* sheet + toast */
+.overlay{position:fixed;inset:0;background:rgba(5,12,9,.55);z-index:80;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--surface);width:min(520px,100%);max-height:90%;overflow:auto;border-radius:16px 16px 0 0;padding:22px max(20px,env(safe-area-inset-left,0px)) max(22px,env(safe-area-inset-bottom,0px));display:grid;gap:14px}
+.sheet h2{font-size:24px}
+.sheet dl{display:grid;grid-template-columns:90px minmax(0,1fr);gap:8px 12px;margin:0}
+.sheet dt{color:var(--muted);font-size:14px}
+.sheet dd{margin:0;overflow-wrap:anywhere}
+.sheet .btns{display:flex;gap:8px;flex-wrap:wrap}
+.sheet label{display:grid;gap:4px;font-size:14px;color:var(--muted)}
+.sheet input,.sheet select{min-height:44px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;padding:0 10px;font:inherit}
+.sheet .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.sheet .days{display:flex;flex-wrap:wrap;gap:6px}
+.sheet .days label{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:8px;padding:6px 10px;color:var(--ink);font-size:14px}
+.sheet .days input{min-height:0}
+.pill{display:inline-block;font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--line);border-radius:99px;padding:2px 9px;color:var(--muted)}
+.toast{position:fixed;left:50%;bottom:max(18px,env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:12px 18px;border-radius:10px;z-index:90;max-width:calc(100% - 32px);box-shadow:0 10px 30px rgba(0,0,0,.35);font-weight:600}
+
+@media (min-width:640px){.overlay{align-items:center}.sheet{border-radius:16px}}
+@media (max-width:900px){
+  .hero .wrap{grid-template-columns:minmax(0,1fr)}
+  .hero{padding-block:28px 36px}
+  .site-h nav{display:none}
+  .demo .note{display:none}
+  .dstrip{display:flex}
+  .col:not(.sel){display:none}
+  .col .chead{display:none}
+  .gut .sp{display:none}
+  .stats div{border-right:0;border-bottom:1px solid var(--line)}
+  .stats div:last-child{border-bottom:0}
+  .chat{height:calc(100vh - 160px);min-height:480px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;scroll-behavior:auto!important}}
+html{color-scheme:light}
+body{margin:0;padding-top:env(safe-area-inset-top,0px)}
+[hidden]{display:none!important}
+img{max-width:100%}
+</style>
+</head>
+<body>
+<div class="demo">
+  <div class="wrap">
+    <span class="tag">Demo</span>
+    <div class="seg" role="group" aria-label="Choose view">
+      <button type="button" id="tabC" aria-pressed="true">Customer site</button>
+      <button type="button" id="tabH" aria-pressed="false">Keith's schedule <span class="badge" id="unread" hidden>0</span></button>
+    </div>
+    <span class="note" id="modeNote"></span>
+  </div>
+</div>
+
+<div id="vC">
+  <header class="site-h">
+    <div class="wrap">
+      <div class="logo"><b>KEITH'S</b><span>Handyman services</span></div>
+      <nav aria-label="Site">
+        <button type="button" data-go="svc">Services</button>
+        <button type="button" data-go="how">How it works</button>
+        <button type="button" data-go="rev">Reviews</button>
+        <span class="phone">(555) 010-4477</span>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="wrap">
+      <div>
+        <p class="label" style="margin-bottom:14px">Small jobs, done properly</p>
+        <h1>Fixed right. Booked in a minute.</h1>
+        <p class="lede">Tell the assistant what's broken. It checks Keith's real calendar and books the first time that suits you.</p>
+        <div class="specs" aria-label="Quick facts">
+          <div><span>Hours</span><b class="js-hours">Mon–Fri · 9 am–6 pm</b></div>
+          <div><span>Pricing</span><b>From $85, quoted up front</b></div>
+          <div><span>Workmanship</span><b>12-month guarantee</b></div>
+          <div><span>Area</span><b>Within 25 km of the city</b></div>
+        </div>
+      </div>
+      <section class="chat" id="chatBox" aria-label="Booking assistant">
+        <header class="chat-h"><b>Book with Keith's assistant</b><span class="live"><i></i>Reads Keith's live calendar</span></header>
+        <div id="log" class="log" role="log" aria-live="polite"></div>
+        <div id="chips" class="chips"></div>
+        <div id="cstatus" class="cstatus" hidden></div>
+        <form id="cform" class="cform" autocomplete="off">
+          <label class="sr" for="cin">Your message</label>
+          <input id="cin" placeholder="Describe the job…" enterkeyhint="send">
+          <button id="csend" class="btn accent" type="submit">Send</button>
+          <button id="cstop" class="btn ghost" type="button" hidden>Stop</button>
+        </form>
+      </section>
+    </div>
+  </section>
+
+  <section class="block" id="svc">
+    <div class="wrap">
+      <div class="head"><div class="ruler" aria-hidden="true"></div><h2>What Keith fixes</h2><p style="color:var(--muted)">Starting prices. Keith confirms the final price on site before any work begins.</p></div>
+      <div class="svc" id="svcGrid"></div>
+    </div>
+  </section>
+
+  <section class="block" id="how">
+    <div class="wrap">
+      <div class="head"><div class="ruler" aria-hidden="true"></div><h2>How booking works</h2></div>
+      <div class="steps">
+        <div><b>STEP 1</b><h3>Describe the job</h3><p>Type it in your own words. The assistant works out the service and how long it takes.</p></div>
+        <div><b>STEP 2</b><h3>Pick a time</h3><p>You only see times that are really free on Keith's calendar, including travel between jobs.</p></div>
+        <div><b>STEP 3</b><h3>Done</h3><p>The job lands straight on Keith's schedule. Change or cancel it in the same chat.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" id="rev">
+    <div class="wrap">
+      <div class="head"><div class="ruler" aria-hidden="true"></div><h2>What customers say</h2><p class="label">Sample reviews for this demo</p></div>
+      <div class="reviews">
+        <blockquote><p>Keith mounted our 65-inch TV and hid every cable. In and out in under an hour.</p><cite>Priya N., Rosewood</cite></blockquote>
+        <blockquote><p>Dripping tap fixed the same week I booked. He cleaned up after himself too.</p><cite>Marcus W., Eastgate</cite></blockquote>
+        <blockquote><p>Booked at 10 pm from my phone and he turned up exactly on time the next morning.</p><cite>Hannah C., Lakeside</cite></blockquote>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="wrap">
+      <div><h3>Keith's Handyman Services</h3><p>Fully insured. Local. Reliable.</p></div>
+      <div><h3>Hours</h3><p class="js-hours">Mon–Fri · 9 am–6 pm</p></div>
+      <div><h3>Urgent job?</h3><p>Call (555) 010-4477. This page is a demo with made-up details.</p></div>
+    </div>
+  </footer>
+</div>
+
+<div id="vH" hidden>
+  <div class="wrap hm">
+    <div class="hm-top">
+      <div>
+        <p class="label">Handyman view</p>
+        <h1>Keith's schedule</h1>
+        <p>Jobs booked in the chat appear here as they happen.</p>
+      </div>
+      <div class="hm-actions">
+        <button class="btn accent" type="button" id="bBlock">Block time off</button>
+        <button class="btn" type="button" id="bSet">Hours &amp; reset</button>
+      </div>
+    </div>
+    <div id="emptyBox" class="empty" hidden>
+      <span>No jobs on the calendar yet.</span>
+      <button class="btn pine" type="button" id="bSeed">Load sample jobs</button>
+    </div>
+    <div class="stats" id="stats"></div>
+    <div class="weekbar">
+      <span class="title" id="wTitle"></span>
+      <button class="btn sm" type="button" id="wPrev" aria-label="Previous week">&larr; Week</button>
+      <button class="btn sm" type="button" id="wToday">Today</button>
+      <button class="btn sm" type="button" id="wNext" aria-label="Next week">Week &rarr;</button>
+    </div>
+    <div class="dstrip" id="dstrip"></div>
+    <div class="cal" id="cal"></div>
+    <p class="hint">Tap a job for details. Blocked time is hidden from the assistant straight away, so it never offers those slots.</p>
+  </div>
+</div>
+
+<div id="toast" class="toast" role="status" hidden></div>
+<div id="ov" class="overlay" hidden></div>
+
+<script src="config.js"></script>
+<script>
+(()=>{
+const API=(window.HANDYMAN_API||"").replace(/\/$/,"");
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+const PHONE='(555) 010-4477';
+const SERVICES=[
+ {id:'tap',name:'Leaky tap or toilet repair',mins:60,from:95,blurb:'Dripping taps, running toilets, worn washers and seals.'},
+ {id:'tv',name:'TV mounting',mins:60,from:85,blurb:'Wall bracket fitted to the stud, cables tidied away.'},
+ {id:'furniture',name:'Furniture assembly',mins:120,from:140,blurb:'Wardrobes, beds, desks and shelving built and anchored.'},
+ {id:'door',name:'Door and lock fixes',mins:90,from:110,blurb:'Sticking doors, loose hinges, new handles and locks.'},
+ {id:'paint',name:'Painting touch-ups',mins:240,from:320,blurb:'Patch, sand and repaint walls, trims and ceilings.'},
+ {id:'deck',name:'Fence and deck repair',mins:480,from:560,blurb:'Replace rotten boards and posts. A full day on site.'},
+ {id:'other',name:'Other small job (quote visit)',mins:60,from:0,blurb:'Not on the list? Keith visits, looks, and quotes. The visit is free.'}
+];
+const STEP=30,BUF=30;
+const DEFAULT_HOURS={start:9,end:18,days:[1,2,3,4,5]};
+const DAYN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const pad=n=>String(n).padStart(2,'0');
+const ymd=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const pd=s=>{const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d)};
+const addDays=(s,n)=>{const d=pd(s);d.setDate(d.getDate()+n);return ymd(d)};
+const mondayOf=s=>{const d=pd(s);d.setDate(d.getDate()-((d.getDay()+6)%7));return ymd(d)};
+const todayStr=()=>ymd(new Date());
+const fmt=m=>`${Math.floor(m/60)%12||12}:${pad(m%60)} ${Math.floor(m/60)>=12?'pm':'am'}`;
+const fmtH=h=>`${h%12||12} ${h>=12?'pm':'am'}`;
+const hhmm=m=>`${pad(Math.floor(m/60))}:${pad(m%60)}`;
+const parseT=t=>{const x=/^(\d{1,2}):(\d{2})$/.exec(String(t||'').trim());return x?(+x[1])*60+(+x[2]):null};
+const validDate=s=>{if(!/^\d{4}-\d{2}-\d{2}$/.test(String(s||'')))return null;return ymd(pd(s))===s?s:null};
+const dayLong=s=>pd(s).toLocaleDateString(undefined,{weekday:'long',month:'short',day:'numeric'});
+const svc=x=>{const q=String(x||'').toLowerCase().trim();const s=SERVICES.find(v=>v.id===q)||SERVICES.find(v=>q&&v.name.toLowerCase().includes(q));if(!s)throw new Error('Unknown service. Use one of these ids: '+SERVICES.map(v=>v.id).join(', '));return s};
+const newId=()=>'b_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const newRef=()=>'KH-'+Array.from({length:4},()=>'ABCDEFGHJKMNPQRSTUVWXYZ23456789'[Math.floor(Math.random()*31)]).join('');
+
+/* ---------- state + persistence ---------- */
+const state={bookings:new Map(),blocks:new Map(),hours:{...DEFAULT_HOURS},mode:'shared',ready:false,view:'customer',sel:todayStr(),unread:0,fresh:new Set(),note:''};
+const mine=new Set();
+let pollTimer=null,rev=0,inflight=0;
+let readyRes;const readyP=new Promise(r=>readyRes=r);
+
+function applyLocal(kind,id,data){
+  if(kind==='settings'){if(data)state.hours=data;return}
+  const m=kind==='bookings'?state.bookings:state.blocks;
+  if(data)m.set(id,{id,...data});else m.delete(id);
+}
+function goLocal(why){
+  clearInterval(pollTimer);
+  state.mode='local';
+  state.note=why==='write'?'Server unreachable: changes stay on this screen':'Not connected: changes stay on this screen';
+  renderAll();
+}
+async function save(kind,id,data){
+  if(data)data=JSON.parse(JSON.stringify(data));
+  if(data&&data.id)delete data.id;
+  if(state.mode==='shared'){
+    rev++;inflight++;
+    try{
+      const r=await fetch(API+'/op',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({kind,id,data})});
+      if(!r.ok)throw new Error('op '+r.status);
+      applyLocal(kind,id,data);return;
+    }catch(e){goLocal('write')}
+    finally{inflight--;rev++}
+  }
+  applyLocal(kind,id,data);
+}
+
+function makeSeed(){
+  const mon=mondayOf(todayStr());
+  const J=[[0,0,'09:00','tv','Priya Nair','555-0142','14 Rosewood Ave','65-inch TV, plasterboard wall'],
+   [1,0,'10:00','tap','Marcus Webb','555-0178','9 Eastgate Rd','Kitchen tap dripping'],
+   [1,0,'14:00','door','Hannah Cole','555-0113','31 Lakeside Dr','Front door sticks'],
+   [2,0,'09:00','furniture','Tom Becker','555-0166','5 Ash Court','Two PAX wardrobes'],
+   [3,0,'13:00','paint','Grace Oduya','555-0121','88 Mill Lane','Hallway scuff marks'],
+   [4,0,'09:30','tap','Luis Ortega','555-0199','2 Pine St','Running toilet'],
+   [0,1,'11:00','door','Elena Rossi','555-0134','47 Harbour View','New lock on back door'],
+   [1,1,'09:00','deck','Sam Whitfield','555-0157','12 Orchard Way','Six rotten deck boards'],
+   [2,1,'14:00','tv','Aisha Khan','555-0188','60 Birch Close','Mount above fireplace'],
+   [3,1,'10:00','furniture','Ben Carter','555-0172','23 Station Rd','Desk and bookcase']];
+  const bookings=J.map(([d,w,t,sid,name,phone,address,notes],i)=>{const s=svc(sid);return{id:'s_b'+i,data:{ref:'KH-S'+pad(i+1)+'X',date:addDays(mon,d+w*7),start:parseT(t),dur:s.mins,service:s.id,serviceName:s.name,name,phone,address,notes,status:'booked',source:'sample',createdAt:0}}});
+  const blocks=[{id:'s_k0',data:{date:addDays(mon,4),start:15*60,dur:60,label:'Dentist'}},{id:'s_k1',data:{date:addDays(mon,9),start:9*60,dur:60,label:'Supplier pickup'}}];
+  return{bookings,blocks};
+}
+
+/* ---------- availability ---------- */
+function slotsFor(date,dur,ignoreId){
+  const dow=pd(date).getDay();
+  if(!state.hours.days.includes(dow))return[];
+  const open=state.hours.start*60,close=state.hours.end*60;
+  let earliest=open;
+  if(date===todayStr()){const n=new Date();earliest=Math.max(open,Math.ceil((n.getHours()*60+n.getMinutes()+60)/STEP)*STEP)}
+  if(date<todayStr())return[];
+  const bk=[...state.bookings.values()].filter(b=>b.date===date&&b.status==='booked'&&b.id!==ignoreId);
+  const bl=[...state.blocks.values()].filter(k=>k.date===date);
+  const out=[];
+  for(let s=earliest;s+dur<=close;s+=STEP){
+    const clash=bk.some(b=>s<b.start+b.dur+BUF&&s+dur+BUF>b.start)||bl.some(k=>s<k.start+k.dur&&s+dur>k.start);
+    if(!clash)out.push(s);
+  }
+  return out;
+}
+
+/* ---------- chat ---------- */
+const chat={turns:[],busy:false,ctl:null};
+const log=$('#log');
+function scrollLog(){log.scrollTop=log.scrollHeight}
+function addMsg(role,text){const d=document.createElement('div');d.className='msg '+role;d.textContent=text;log.append(d);scrollLog();return d}
+function addCard(b){
+  const d=document.createElement('div');d.className='ticket';
+  d.innerHTML=`<span class="stamp">BOOKED</span><h3>${esc(b.serviceName)}</h3><div class="row">${esc(dayLong(b.date))}, ${fmt(b.start)}–${fmt(b.start+b.dur)}</div><div class="row">${esc(b.address)}</div><div class="ref">Ref ${esc(b.ref)}</div>`;
+  log.append(d);scrollLog();
+}
+function setStatus(t){const s=$('#cstatus');if(!t){s.hidden=true;return}s.hidden=false;s.textContent=t}
+function setBusy(b){chat.busy=b;$('#csend').hidden=b;$('#cstop').hidden=!b;$('#cin').disabled=b;if(!b)setStatus('')}
+
+const rules=()=>{
+  const n=new Date();
+  return `You are the website booking assistant for Keith's Handyman Services. You chat with customers and book jobs on Keith's real calendar using your tools. This is a demo with made-up data.
+
+Now: ${n.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}, ${fmt(n.getHours()*60+n.getMinutes())}. Today's date is ${todayStr()}.
+Keith works ${hoursText()}. Service area: within 25 km of the city. Urgent phone line: ${PHONE}.
+
+Services (id, name, duration, starting price):
+${SERVICES.map(s=>`- ${s.id}: ${s.name}, ${s.mins/60>=1?s.mins/60+' hr':s.mins+' min'}, ${s.from?'from $'+s.from:'free quote visit'}`).join('\n')}
+
+Rules:
+- Never state or guess availability, and never say a job is booked, without using the tools. Call find_slots before offering times, and offer at most 3 options.
+- Match the customer's description to a service. If it fits none, use "other" for a quote visit. Keith does not do electrical wiring, gas, roofing or tree removal: say so kindly and suggest a licensed specialist.
+- Before booking you need: the service, a day and time, the customer's name, mobile number and street address. Ask for missing items one or two at a time. Notes are optional.
+- Read the details back and get a clear yes before calling book_slot.
+- After booking, confirm in one or two lines and always give the reference code.
+- To change or cancel, ask for the reference or the phone number, use find_booking, then reschedule_booking or cancel_booking. Confirm before cancelling.
+- Emergencies (active flooding, gas smell, sparking electrics): tell them to make it safe and call emergency services if needed, and give Keith's urgent line ${PHONE}. Do not book it as a normal job.
+- Dates in tool calls are YYYY-MM-DD and times are 24-hour HH:MM. When speaking to the customer, use plain day names and 12-hour times like "10:30 am".
+- Prices are starting prices; Keith confirms the final price on site.
+- Style: friendly, brief (under 60 words), plain text, no markdown, no bullet symbols or asterisks.`;
+};
+
+const TOOLS=[
+ {name:'find_slots',description:"Look up open appointment start times on Keith's live calendar for a service. Returns up to max_days upcoming working days that have openings, each with a list of start times in 24-hour HH:MM. Call before offering any times.",
+  inputSchema:{type:'object',properties:{service:{type:'string',description:'Service id'},from_date:{type:'string',description:'YYYY-MM-DD, first day to look at. Defaults to today.'},max_days:{type:'number',description:'How many days with openings to return, 1 to 5. Default 3.'}},required:['service']},
+  async execute(i){
+    setStatus("Checking Keith's calendar…");await wait(500);
+    const sv=svc(i.service);let from=validDate(i.from_date)||todayStr();if(from<todayStr())from=todayStr();
+    const max=Math.min(5,Math.max(1,Math.round(+i.max_days||3)));const days=[];
+    for(let n=0;n<42&&days.length<max;n++){const d=addDays(from,n);const s=slotsFor(d,sv.mins);if(s.length)days.push({date:d,weekday:pd(d).toLocaleDateString('en-US',{weekday:'long'}),times:s.map(hhmm)})}
+    return{service:sv.name,duration_minutes:sv.mins,days};
+  }},
+ {name:'book_slot',description:'Create a booking on Keith\'s calendar. Only call after the customer has clearly confirmed all details. Fails if the time is no longer free. Returns the reference code.',
+  inputSchema:{type:'object',properties:{service:{type:'string'},date:{type:'string',description:'YYYY-MM-DD'},time:{type:'string',description:'HH:MM, 24-hour'},name:{type:'string'},phone:{type:'string'},address:{type:'string'},notes:{type:'string'}},required:['service','date','time','name','phone','address']},
+  async execute(i){
+    setStatus('Booking it in…');await wait(500);
+    const sv=svc(i.service),date=validDate(i.date),start=parseT(i.time);
+    if(!date||start==null)throw new Error('date must be YYYY-MM-DD and time HH:MM');
+    for(const f of['name','phone','address'])if(!String(i[f]||'').trim())throw new Error('Missing '+f);
+    if(!slotsFor(date,sv.mins).includes(start))throw new Error('That time is not available (it may have just been taken). Call find_slots again and offer other times.');
+    const id=newId();
+    const b={ref:newRef(),date,start,dur:sv.mins,service:sv.id,serviceName:sv.name,name:String(i.name).trim(),phone:String(i.phone).trim(),address:String(i.address).trim(),notes:String(i.notes||'').trim(),status:'booked',source:'chat',createdAt:Date.now()};
+    mine.add(id);await save('bookings',id,b);
+    state.fresh.add(id);if(state.view!=='handyman')state.unread++;
+    renderAll();addCard({id,...b});
+    return{ok:true,reference:b.ref,service:sv.name,date,time:hhmm(start),ends:hhmm(start+sv.mins)};
+  }},
+ {name:'find_booking',description:"Find a customer's upcoming bookings by phone number or reference code.",
+  inputSchema:{type:'object',properties:{phone:{type:'string'},reference:{type:'string'}}},
+  async execute(i){
+    setStatus('Looking up the booking…');await wait(400);
+    const dg=s=>String(s||'').replace(/\D/g,''),p=dg(i.phone),r=String(i.reference||'').trim().toUpperCase();
+    const hits=[...state.bookings.values()].filter(b=>b.status==='booked'&&b.date>=todayStr()&&((r&&b.ref===r)||(p.length>=6&&dg(b.phone).endsWith(p.slice(-7)))));
+    return{matches:hits.map(b=>({reference:b.ref,service:b.serviceName,service_id:b.service,date:b.date,time:hhmm(b.start),duration_minutes:b.dur,name:b.name}))};
+  }},
+ {name:'cancel_booking',description:'Cancel a booking by reference code. Only after the customer confirms.',
+  inputSchema:{type:'object',properties:{reference:{type:'string'}},required:['reference']},
+  async execute(i){
+    setStatus('Cancelling…');await wait(400);
+    const b=[...state.bookings.values()].find(x=>x.ref===String(i.reference||'').trim().toUpperCase()&&x.status==='booked');
+    if(!b)throw new Error('No active booking with that reference.');
+    await save('bookings',b.id,{...b,status:'cancelled'});renderAll();
+    return{ok:true,cancelled:b.ref};
+  }},
+ {name:'reschedule_booking',description:'Move an existing booking to a new date and time. Fails if the new time is not free.',
+  inputSchema:{type:'object',properties:{reference:{type:'string'},date:{type:'string',description:'YYYY-MM-DD'},time:{type:'string',description:'HH:MM, 24-hour'}},required:['reference','date','time']},
+  async execute(i){
+    setStatus('Moving your booking…');await wait(500);
+    const b=[...state.bookings.values()].find(x=>x.ref===String(i.reference||'').trim().toUpperCase()&&x.status==='booked');
+    if(!b)throw new Error('No active booking with that reference.');
+    const date=validDate(i.date),start=parseT(i.time);
+    if(!date||start==null)throw new Error('date must be YYYY-MM-DD and time HH:MM');
+    if(!slotsFor(date,b.dur,b.id).includes(start))throw new Error('That time is not available. Call find_slots and offer other times.');
+    await save('bookings',b.id,{...b,date,start});state.fresh.add(b.id);renderAll();
+    return{ok:true,reference:b.ref,date,time:hhmm(start)};
+  }}
+];
+
+const ERR={no_api:'The chat is not connected to its server yet. Set the Worker address in config.js.',rate_limited:'Too many messages too quickly. Wait a minute, then send it again.',empty:'The assistant gave no answer. Send your message again.'};
+const OPENAI_TOOLS=TOOLS.map(t=>({type:'function',function:{name:t.name,description:t.description,parameters:t.inputSchema}}));
+
+async function send(text){
+  text=String(text||'').trim();
+  if(!text||chat.busy)return;
+  $('#chips').hidden=true;
+  addMsg('user',text);chat.turns.push({role:'user',content:text});$('#cin').value='';
+  setBusy(true);setStatus('Thinking…');
+  const bubble=addMsg('bot','');bubble.innerHTML='<span class="dots"><i></i><i></i><i></i></span>';
+  chat.ctl=new AbortController();
+  try{
+    if(!API)throw{code:'no_api'};
+    await readyP;
+    const msgs=[{role:'system',content:rules()},...chat.turns];
+    let reply='';
+    for(let round=0;round<6&&!reply;round++){
+      const r=await fetch(API+'/chat',{method:'POST',headers:{'content-type':'application/json'},signal:chat.ctl.signal,body:JSON.stringify({messages:msgs,tools:OPENAI_TOOLS})});
+      if(r.status===429)throw{code:'rate_limited'};
+      if(!r.ok)throw{code:'upstream_error'};
+      const m=((await r.json()).choices||[])[0]?.message;
+      if(!m)throw{code:'upstream_error'};
+      if(m.tool_calls&&m.tool_calls.length){
+        msgs.push({role:'assistant',content:m.content||'',tool_calls:m.tool_calls});
+        for(const tc of m.tool_calls){
+          const t=TOOLS.find(x=>x.name===tc.function.name);let out;
+          try{if(!t)throw new Error('Unknown tool');out=await t.execute(JSON.parse(tc.function.arguments||'{}'))}
+          catch(err){out='Error: '+(err.message||err)}
+          msgs.push({role:'tool',tool_call_id:tc.id,content:typeof out==='string'?out:JSON.stringify(out)});
+        }
+        setStatus('Thinking…');
+      }else reply=(m.content||'').trim();
+    }
+    if(!reply)throw{code:'empty'};
+    bubble.textContent=reply;chat.turns.push({role:'assistant',content:reply});
+  }catch(e){
+    bubble.remove();
+    if(e&&e.name==='AbortError')e={code:'cancelled'};
+    if(e&&e.code==='cancelled')addMsg('err','Stopped.');
+    else addMsg('err',ERR[e&&e.code]||'Something went wrong reaching the assistant. Send your message again.');
+  }finally{setBusy(false);$('#cin').focus({preventScroll:true});scrollLog()}
+}
+$('#cform').addEventListener('submit',e=>{e.preventDefault();send($('#cin').value)});
+$('#cstop').addEventListener('click',()=>chat.ctl&&chat.ctl.abort());
+
+function initChat(){
+  addMsg('bot',"Hi, I'm Keith's booking assistant. What needs fixing?");
+  const ex=['My kitchen tap is dripping','Mount a TV on Thursday','What do you charge?','I need to move my booking'];
+  $('#chips').innerHTML=ex.map(t=>`<button type="button">${esc(t)}</button>`).join('');
+  $('#chips').addEventListener('click',e=>{const b=e.target.closest('button');if(b)send(b.textContent)});
+  $('#svcGrid').innerHTML=SERVICES.map(s=>`<article><h3>${esc(s.name)}</h3><p>${esc(s.blurb)}</p><div class="meta"><span>${s.mins>=60?(s.mins/60)+' hr':s.mins+' min'}${s.mins>=480?' (full day)':''}</span><b>${s.from?'from $'+s.from:'free visit'}</b></div><button class="btn sm" type="button" data-book="${esc(s.name)}">Book this</button></article>`).join('');
+}
+$('#svcGrid').addEventListener('click',e=>{const b=e.target.closest('[data-book]');if(!b)return;setView('customer');$('#chatBox').scrollIntoView({behavior:'smooth',block:'center'});send("I'd like to book: "+b.dataset.book)});
+document.addEventListener('click',e=>{const g=e.target.closest('[data-go]');if(g)document.getElementById(g.dataset.go).scrollIntoView({behavior:'smooth'})});
+
+/* ---------- views ---------- */
+function hoursText(){
+  const h=state.hours,ds=[...h.days].sort((a,b)=>((a+6)%7)-((b+6)%7));
+  let dt=ds.map(d=>DAYN[d]).join(', ');
+  if(ds.join()==='1,2,3,4,5')dt='Mon–Fri';else if(ds.length===7)dt='Every day';
+  return `${dt} · ${fmtH(h.start)}–${fmtH(h.end)}`;
+}
+function setView(v){
+  state.view=v;$('#vC').hidden=v!=='customer';$('#vH').hidden=v!=='handyman';
+  $('#tabC').setAttribute('aria-pressed',v==='customer');$('#tabH').setAttribute('aria-pressed',v==='handyman');
+  if(v==='handyman'){state.unread=0;setTimeout(()=>{state.fresh.clear();if(state.view==='handyman')renderCal()},9000)}
+  try{history.replaceState(null,'',v==='handyman'?'#handyman':location.pathname+location.search)}catch{}
+  window.scrollTo(0,0);renderAll();
+}
+$('#tabC').onclick=()=>setView('customer');$('#tabH').onclick=()=>setView('handyman');
+
+function renderAll(){
+  document.querySelectorAll('.js-hours').forEach(e=>e.textContent=hoursText());
+  const u=$('#unread');u.hidden=!state.unread;u.textContent=state.unread;
+  $('#modeNote').innerHTML=state.mode==='local'?`<b>${esc(state.note)}</b>`:'Bookings are saved and shared live';
+  if(state.view==='handyman')renderCal();
+}
+
+/* ---------- calendar ---------- */
+const H=48;
+const evsOn=d=>({b:[...state.bookings.values()].filter(x=>x.date===d&&x.status!=='cancelled').sort((a,c)=>a.start-c.start),k:[...state.blocks.values()].filter(x=>x.date===d)});
+function renderCal(){
+  const today=todayStr(),mon=mondayOf(state.sel);
+  const all=[0,1,2,3,4,5,6].map(i=>addDays(mon,i));
+  let cols=all.filter(d=>{const e=evsOn(d);return state.hours.days.includes(pd(d).getDay())||e.b.length||e.k.length});
+  if(!cols.length)cols=[state.sel];
+  if(!cols.includes(state.sel))state.sel=cols.includes(today)?today:cols[0];
+  let lo=state.hours.start*60,hi=state.hours.end*60;
+  cols.forEach(d=>{const e=evsOn(d);e.b.forEach(b=>{lo=Math.min(lo,b.start);hi=Math.max(hi,b.start+b.dur)});e.k.forEach(k=>{lo=Math.min(lo,k.start);hi=Math.max(hi,k.start+k.dur)})});
+  const rs=Math.floor(lo/60),re=Math.ceil(hi/60),px=m=>(m-rs*60)/60*H,open=state.hours.start*60,close=state.hours.end*60;
+  const a=pd(cols[0]),z=pd(cols[cols.length-1]);
+  $('#wTitle').textContent=`${a.toLocaleDateString(undefined,{month:'short',day:'numeric'})} – ${z.toLocaleDateString(undefined,{month:'short',day:'numeric'})}`;
+  // stats
+  const wk=cols.flatMap(d=>evsOn(d).b),mins=wk.reduce((s,b)=>s+b.dur,0);
+  const td=evsOn(today).b,nowM=new Date().getHours()*60+new Date().getMinutes();
+  const nxt=[...state.bookings.values()].filter(b=>b.status==='booked'&&(b.date>today||(b.date===today&&b.start+b.dur>nowM))).sort((x,y)=>x.date.localeCompare(y.date)||x.start-y.start)[0];
+  $('#stats').innerHTML=`<div><small>Today</small><b>${td.length} job${td.length===1?'':'s'}</b></div><div><small>This week</small><b>${wk.length} jobs · ${Math.round(mins/6)/10} hr</b></div><div><small>Next job</small><b>${nxt?esc((nxt.date===today?'Today':pd(nxt.date).toLocaleDateString(undefined,{weekday:'short'}))+' '+fmt(nxt.start)):'None'}</b><small>${nxt?esc(nxt.name+' · '+nxt.serviceName):''}</small></div>`;
+  $('#emptyBox').hidden=!(state.ready&&!state.bookings.size&&!state.blocks.size);
+  // day strip
+  $('#dstrip').innerHTML=cols.map(d=>`<button type="button" data-pick="${d}" aria-pressed="${d===state.sel}"><span>${DAYN[pd(d).getDay()]}</span><small>${pd(d).getDate()}</small></button>`).join('');
+  // grid
+  const gut=[];for(let h=rs;h<re;h++)gut.push(`<span style="top:${(h-rs)*H+2}px">${fmtH(h)}</span>`);
+  const colsH=cols.map(d=>{
+    const e=evsOn(d),n=e.b.length;
+    const ev=[];
+    if(open>rs*60)ev.push(`<div class="closed" style="top:0;height:${px(open)}px"></div>`);
+    if(close<re*60)ev.push(`<div class="closed" style="top:${px(close)}px;height:${px(re*60)-px(close)}px"></div>`);
+    if(!state.hours.days.includes(pd(d).getDay()))ev.push(`<div class="closed" style="top:0;bottom:0"></div>`);
+    e.k.forEach(k=>ev.push(`<button class="ev block" type="button" data-k="${esc(k.id)}" style="top:${px(k.start)}px;height:${Math.max(20,k.dur/60*H-2)}px"><span class="n">${esc(k.label||'Blocked')}</span><span class="t">${fmt(k.start)}–${fmt(k.start+k.dur)}</span></button>`));
+    e.b.forEach(b=>{const h=Math.max(20,b.dur/60*H-2);ev.push(`<button class="ev ${b.status==='done'?'done':''} ${state.fresh.has(b.id)?'new':''}" type="button" data-b="${esc(b.id)}" style="top:${px(b.start)}px;height:${h}px">${h>=40?`<span class="t">${fmt(b.start)}–${fmt(b.start+b.dur)}</span>`:''}<span class="n">${esc(b.name)}</span>${h>=80?`<span class="s">${esc(b.serviceName)}</span>`:''}</button>`)});
+    if(d===today&&nowM>=rs*60&&nowM<=re*60)ev.push(`<div class="nowline" style="top:${px(nowM)}px"></div>`);
+    return `<div class="col ${d===state.sel?'sel':''} ${d===today?'today':''}"><button class="chead" type="button" data-pick="${d}"><span class="dn">${DAYN[pd(d).getDay()]}</span><span class="dd">${pd(d).getDate()}</span><span class="dc">${n} job${n===1?'':'s'}</span></button><div class="cbody" style="height:${(re-rs)*H}px">${ev.join('')}</div></div>`;
+  }).join('');
+  $('#cal').innerHTML=`<div class="gut"><div class="sp"></div><div class="gb" style="height:${(re-rs)*H}px">${gut.join('')}</div></div><div class="cols" style="grid-template-columns:repeat(${cols.length},minmax(0,1fr))">${colsH}</div>`;
+}
+$('#cal').addEventListener('click',e=>{const b=e.target.closest('[data-b]'),k=e.target.closest('[data-k]'),p=e.target.closest('[data-pick]');
+  if(b)openBooking(b.dataset.b);else if(k)openBlock(k.dataset.k);else if(p){state.sel=p.dataset.pick;renderCal()}});
+$('#dstrip').addEventListener('click',e=>{const p=e.target.closest('[data-pick]');if(p){state.sel=p.dataset.pick;renderCal()}});
+$('#wPrev').onclick=()=>{state.sel=addDays(mondayOf(state.sel),-7);renderCal()};
+$('#wNext').onclick=()=>{state.sel=addDays(mondayOf(state.sel),7);renderCal()};
+$('#wToday').onclick=()=>{state.sel=todayStr();renderCal()};
+
+/* ---------- sheets ---------- */
+const ov=$('#ov');
+function openSheet(html){ov.innerHTML=`<div class="sheet" role="dialog" aria-modal="true">${html}</div>`;ov.hidden=false;const f=ov.querySelector('input,select,button');if(f)f.focus({preventScroll:true});return ov.firstElementChild}
+function closeSheet(){ov.hidden=true;ov.innerHTML=''}
+ov.addEventListener('click',e=>{if(e.target===ov)closeSheet()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!ov.hidden)closeSheet()});
+let tt;function toast(t){const el=$('#toast');el.textContent=t;el.hidden=false;clearTimeout(tt);tt=setTimeout(()=>el.hidden=true,4500)}
+
+function openBooking(id){
+  const b=state.bookings.get(id);if(!b)return;
+  const sh=openSheet(`<div><span class="pill">${b.status==='done'?'Completed':'Booked'} · ${esc(b.source==='chat'?'via chat assistant':b.source==='sample'?'sample job':'manual')}</span></div><h2>${esc(b.serviceName)}</h2>
+  <dl><dt>When</dt><dd>${esc(dayLong(b.date))}<br>${fmt(b.start)}–${fmt(b.start+b.dur)}</dd><dt>Customer</dt><dd>${esc(b.name)}</dd><dt>Phone</dt><dd class="mono">${esc(b.phone)}</dd><dt>Address</dt><dd>${esc(b.address)}</dd><dt>Notes</dt><dd>${esc(b.notes||'None')}</dd><dt>Reference</dt><dd class="mono">${esc(b.ref)}</dd></dl>
+  <div class="btns">${b.status==='booked'?'<button class="btn pine" type="button" id="sDone">Mark complete</button>':''}<button class="btn danger" type="button" id="sCancel">Cancel job</button><button class="btn ghost" type="button" id="sClose">Close</button></div>`);
+  sh.querySelector('#sClose').onclick=closeSheet;
+  const d=sh.querySelector('#sDone');if(d)d.onclick=async()=>{await save('bookings',id,{...b,status:'done'});closeSheet();renderAll();toast('Marked complete')};
+  const c=sh.querySelector('#sCancel');let armed=false;
+  c.onclick=async()=>{if(!armed){armed=true;c.textContent='Tap again to cancel this job';return}await save('bookings',id,{...b,status:'cancelled'});closeSheet();renderAll();toast('Job cancelled. The slot is open again.')};
+}
+function openBlock(id){
+  const k=state.blocks.get(id);if(!k)return;
+  const sh=openSheet(`<span class="pill">Blocked time</span><h2>${esc(k.label||'Blocked')}</h2><dl><dt>When</dt><dd>${esc(dayLong(k.date))}<br>${fmt(k.start)}–${fmt(k.start+k.dur)}</dd></dl><div class="btns"><button class="btn danger" type="button" id="kDel">Remove block</button><button class="btn ghost" type="button" id="kClose">Close</button></div>`);
+  sh.querySelector('#kClose').onclick=closeSheet;
+  sh.querySelector('#kDel').onclick=async()=>{await save('blocks',id,null);closeSheet();renderAll();toast('Block removed. Customers can book that time again.')};
+}
+const timeOpts=(sel)=>{let o='';for(let m=6*60;m<=21*60;m+=30)o+=`<option value="${m}" ${m===sel?'selected':''}>${fmt(m)}</option>`;return o};
+$('#bBlock').onclick=()=>{
+  const sh=openSheet(`<h2>Block time off</h2><p style="color:var(--muted)">The assistant will stop offering these times straight away.</p>
+  <label>What is it for<input id="kLabel" value="Time off"></label>
+  <div class="two"><label>Date<input id="kDate" type="date" value="${state.sel}"></label><label>Starts<select id="kStart">${timeOpts(state.hours.start*60+240)}</select></label></div>
+  <div class="two"><label>Length<select id="kDur"><option value="30">30 min</option><option value="60" selected>1 hour</option><option value="120">2 hours</option><option value="180">3 hours</option><option value="240">4 hours</option></select></label><label style="align-content:end;display:flex;align-items:center;gap:8px;color:var(--ink)"><input id="kAll" type="checkbox" style="min-height:0"> All day</label></div>
+  <div class="btns"><button class="btn accent" type="button" id="kAdd">Block it</button><button class="btn ghost" type="button" id="kX">Cancel</button></div>`);
+  sh.querySelector('#kX').onclick=closeSheet;
+  sh.querySelector('#kAdd').onclick=async()=>{
+    const date=validDate(sh.querySelector('#kDate').value);if(!date){toast('Pick a date');return}
+    const all=sh.querySelector('#kAll').checked;
+    const start=all?state.hours.start*60:+sh.querySelector('#kStart').value,dur=all?(state.hours.end-state.hours.start)*60:+sh.querySelector('#kDur').value;
+    await save('blocks','k_'+newId().slice(2),{date,start,dur,label:sh.querySelector('#kLabel').value.trim()||'Time off'});
+    state.sel=date;closeSheet();renderAll();toast('Time blocked');
+  };
+};
+$('#bSet').onclick=()=>{
+  const h=state.hours;
+  const hrs=(sel)=>{let o='';for(let x=5;x<=22;x++)o+=`<option value="${x}" ${x===sel?'selected':''}>${fmtH(x)}</option>`;return o};
+  const sh=openSheet(`<h2>Working hours</h2>
+  <div class="two"><label>Start<select id="hS">${hrs(h.start)}</select></label><label>Finish<select id="hE">${hrs(h.end)}</select></label></div>
+  <div class="days" role="group" aria-label="Working days">${[1,2,3,4,5,6,0].map(d=>`<label><input type="checkbox" value="${d}" ${h.days.includes(d)?'checked':''}> ${DAYN[d]}</label>`).join('')}</div>
+  <div class="btns"><button class="btn pine" type="button" id="hSave">Save hours</button><button class="btn ghost" type="button" id="hX">Close</button></div>
+  <hr style="border:0;border-top:1px solid var(--line);width:100%"><p style="color:var(--muted);font-size:14px">Demo tools: put the sample week back, with fresh dates, and clear everything else.</p>
+  <div class="btns"><button class="btn danger" type="button" id="hReset">Reset demo data</button></div>`);
+  sh.querySelector('#hX').onclick=closeSheet;
+  sh.querySelector('#hSave').onclick=async()=>{
+    const s=+sh.querySelector('#hS').value,e=+sh.querySelector('#hE').value,days=[...sh.querySelectorAll('.days input:checked')].map(i=>+i.value);
+    if(e<=s||!days.length){toast('Finish must be after start, with at least one working day');return}
+    await save('settings','hours',{start:s,end:e,days});closeSheet();renderAll();toast('Hours updated');
+  };
+  const r=sh.querySelector('#hReset');let armed=false;
+  r.onclick=async()=>{if(!armed){armed=true;r.textContent='Tap again to reset';return}r.disabled=true;r.textContent='Resetting…';await resetDemo();closeSheet();toast('Demo data reset')};
+};
+async function resetDemo(){
+  for(const id of[...state.bookings.keys()])await save('bookings',id,null);
+  for(const id of[...state.blocks.keys()])await save('blocks',id,null);
+  const s=makeSeed();
+  for(const b of s.bookings)await save('bookings',b.id,b.data);
+  for(const k of s.blocks)await save('blocks',k.id,k.data);
+  await save('settings','hours',{...DEFAULT_HOURS});
+  state.ready=true;renderAll();
+}
+$('#bSeed').onclick=async e=>{e.target.disabled=true;await resetDemo();e.target.disabled=false};
+
+/* ---------- data ---------- */
+const objMap=o=>new Map(Object.entries(o||{}).map(([id,v])=>[id,{id,...v}]));
+async function pull(){
+  const startRev=rev;
+  const r=await fetch(API+'/state',{cache:'no-store'});
+  if(!r.ok)throw new Error('state '+r.status);
+  const s=await r.json();
+  if(startRev!==rev||inflight)return s;
+  const prev=new Set(state.bookings.keys()),wasReady=state.ready;
+  state.bookings=objMap(s.bookings);state.blocks=objMap(s.blocks);
+  if(s.hours&&s.hours.start!=null)state.hours=s.hours;
+  if(wasReady)state.bookings.forEach((b,id)=>{if(!prev.has(id)&&!mine.has(id)&&b.source==='chat'){state.fresh.add(id);if(state.view!=='handyman')state.unread++;toast(`New booking: ${b.name}, ${dayLong(b.date)} ${fmt(b.start)}`)}});
+  return s;
+}
+function startLocal(){
+  state.mode='local';state.note='Not connected: changes stay on this screen';
+  const s=makeSeed();s.bookings.forEach(b=>applyLocal('bookings',b.id,b.data));s.blocks.forEach(k=>applyLocal('blocks',k.id,k.data));
+  state.ready=true;readyRes();renderAll();
+}
+async function initData(){
+  if(!API){startLocal();return}
+  try{
+    const s=await pull();
+    state.ready=true;readyRes();
+    if(!s.hours)await resetDemo();
+    renderAll();
+    pollTimer=setInterval(()=>{if(document.hidden||state.mode!=='shared')return;pull().then(renderAll).catch(()=>{})},4000);
+  }catch(e){startLocal()}
+}
+
+initChat();
+if(location.hash==='#handyman')setView('handyman');else renderAll();
+window.addEventListener('hashchange',()=>setView(location.hash==='#handyman'?'handyman':'customer'));
+initData();
+})();
+</script>
+</body>
+</html>

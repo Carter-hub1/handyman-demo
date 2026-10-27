@@ -1,0 +1,11 @@
+name = "keith-handyman-api"
+main = "index.js"
+compatibility_date = "2025-01-01"
+
+[[kv_namespaces]]
+binding = "STATE"
+id = "PASTE_KV_NAMESPACE_ID_HERE"
+
+[vars]
+# The exact address of the site, e.g. https://your-name.github.io
+ALLOWED_ORIGIN = "https://YOUR-NAME.github.io"
