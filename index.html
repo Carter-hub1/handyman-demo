@@ -479,13 +479,23 @@ Rules:
 - Before booking you need: the service, a day and time, the customer's name, mobile number and street address. Also ask for their email address so a confirmation can be sent; it is optional and they may decline. Ask for missing items one or two at a time. Notes are optional.
 - Read the details back and get a clear yes before calling book_slot.
 - After booking, confirm in one or two lines and always give the reference code. Only say a confirmation email was sent if the book_slot result says confirmation_email is "sent"; if it says "not sent", say the booking is saved but the email could not be sent.
-- To change or cancel, ask for the reference or the phone number, use find_booking, then reschedule_booking or cancel_booking. Confirm before cancelling.
+- If the customer gives a booking reference, or wants to check, change or cancel a booking, ask for the reference plus the phone number or email used for the booking. Use find_booking to read back the service, day, time and address. Never reveal or change a booking unless the tool matches it. Then use reschedule_booking or cancel_booking, passing the same reference and phone or email, and confirm before cancelling.
 - Emergencies (active flooding, gas smell, sparking electrics): tell them to make it safe and call emergency services if needed, and give Keith's urgent line ${PHONE}. Do not book it as a normal job.
 - Dates in tool calls are YYYY-MM-DD and times are 24-hour HH:MM. When speaking to the customer, use plain day names and 12-hour times like "10:30 am".
 - Prices are in pounds sterling (£) and are starting prices; Keith confirms the final price on site.
 - Style: friendly, brief (under 60 words), plain text, no markdown, no bullet symbols or asterisks.`;
 };
 
+const digits=v=>String(v||'').replace(/\D/g,'');
+const sameEmail=(a,b)=>!!a&&!!b&&String(a).trim().toLowerCase()===String(b).trim().toLowerCase();
+const phoneMatches=(b,p)=>digits(p).length>=6&&digits(b.phone).endsWith(digits(p).slice(-7));
+const proves=(b,i)=>phoneMatches(b,i.phone)||sameEmail(b.email,i.email);
+function ownBooking(i){
+  const r=String(i.reference||'').trim().toUpperCase();
+  const b=[...state.bookings.values()].find(x=>x.ref===r&&x.status==='booked');
+  if(!b||!proves(b,i))throw new Error('Could not match that booking. Ask the customer for the reference plus the phone number or email used when booking.');
+  return b;
+}
 const TOOLS=[
  {name:'find_slots',description:"Look up open appointment start times on Keith's live calendar for a service. Returns up to max_days upcoming working days that have openings, each with a list of start times in 24-hour HH:MM. Call before offering any times.",
   inputSchema:{type:'object',properties:{service:{type:'string',description:'Service id'},from_date:{type:'string',description:'YYYY-MM-DD, first day to look at. Defaults to today.'},max_days:{type:'number',description:'How many days with openings to return, 1 to 5. Default 3.'}},required:['service']},
@@ -522,29 +532,27 @@ const TOOLS=[
     renderAll();addCard({id,...b},mail==='sent');
     return{ok:true,reference:b.ref,service:sv.name,date,time:hhmm(start),ends:hhmm(start+sv.mins),confirmation_email:mail};
   }},
- {name:'find_booking',description:"Find a customer's upcoming bookings by phone number or reference code.",
-  inputSchema:{type:'object',properties:{phone:{type:'string'},reference:{type:'string'}}},
+ {name:'find_booking',description:"Look up a customer's upcoming booking. Needs the reference code plus the phone number or email used for the booking, or both the phone and the email. Returns the details only when they match.",
+  inputSchema:{type:'object',properties:{reference:{type:'string'},phone:{type:'string'},email:{type:'string'}}},
   async execute(i){
     setStatus('Looking up the booking…');await wait(400);
-    const dg=s=>String(s||'').replace(/\D/g,''),p=dg(i.phone),r=String(i.reference||'').trim().toUpperCase();
-    const hits=[...state.bookings.values()].filter(b=>b.status==='booked'&&b.date>=todayStr()&&((r&&b.ref===r)||(p.length>=6&&dg(b.phone).endsWith(p.slice(-7)))));
-    return{matches:hits.map(b=>({reference:b.ref,service:b.serviceName,service_id:b.service,date:b.date,time:hhmm(b.start),duration_minutes:b.dur,name:b.name}))};
+    const r=String(i.reference||'').trim().toUpperCase();
+    const hits=[...state.bookings.values()].filter(b=>b.status==='booked'&&b.date>=todayStr()&&((r&&b.ref===r&&proves(b,i))||(phoneMatches(b,i.phone)&&sameEmail(b.email,i.email))));
+    return{matches:hits.map(b=>({reference:b.ref,service:b.serviceName,service_id:b.service,date:b.date,time:hhmm(b.start),duration_minutes:b.dur,name:b.name,address:b.address}))};
   }},
- {name:'cancel_booking',description:'Cancel a booking by reference code. Only after the customer confirms.',
-  inputSchema:{type:'object',properties:{reference:{type:'string'}},required:['reference']},
+ {name:'cancel_booking',description:'Cancel a booking. Needs the reference plus the phone number or email used for the booking. Only after the customer confirms.',
+  inputSchema:{type:'object',properties:{reference:{type:'string'},phone:{type:'string'},email:{type:'string'}},required:['reference']},
   async execute(i){
     setStatus('Cancelling…');await wait(400);
-    const b=[...state.bookings.values()].find(x=>x.ref===String(i.reference||'').trim().toUpperCase()&&x.status==='booked');
-    if(!b)throw new Error('No active booking with that reference.');
+    const b=ownBooking(i);
     await save('bookings',b.id,{...b,status:'cancelled'});renderAll();
     return{ok:true,cancelled:b.ref};
   }},
- {name:'reschedule_booking',description:'Move an existing booking to a new date and time. Fails if the new time is not free.',
-  inputSchema:{type:'object',properties:{reference:{type:'string'},date:{type:'string',description:'YYYY-MM-DD'},time:{type:'string',description:'HH:MM, 24-hour'}},required:['reference','date','time']},
+ {name:'reschedule_booking',description:'Move an existing booking to a new date and time. Needs the reference plus the phone number or email used for the booking. Fails if the new time is not free.',
+  inputSchema:{type:'object',properties:{reference:{type:'string'},phone:{type:'string'},email:{type:'string'},date:{type:'string',description:'YYYY-MM-DD'},time:{type:'string',description:'HH:MM, 24-hour'}},required:['reference','date','time']},
   async execute(i){
     setStatus('Moving your booking…');await wait(500);
-    const b=[...state.bookings.values()].find(x=>x.ref===String(i.reference||'').trim().toUpperCase()&&x.status==='booked');
-    if(!b)throw new Error('No active booking with that reference.');
+    const b=ownBooking(i);
     const date=validDate(i.date),start=parseT(i.time);
     if(!date||start==null)throw new Error('date must be YYYY-MM-DD and time HH:MM');
     if(!slotsFor(date,b.dur,b.id).includes(start))throw new Error('That time is not available. Call find_slots and offer other times.');
@@ -600,7 +608,7 @@ $('#cstop').addEventListener('click',()=>chat.ctl&&chat.ctl.abort());
 
 function initChat(){
   addMsg('bot',"Hi, I'm Keith's booking assistant. What needs fixing?");
-  const ex=['My kitchen tap is dripping','Mount a TV on Thursday','What do you charge?','I need to move my booking'];
+  const ex=['My kitchen tap is dripping','Mount a TV on Thursday','What do you charge?','Check my booking details'];
   $('#chips').innerHTML=ex.map(t=>`<button type="button">${esc(t)}</button>`).join('');
   $('#chips').addEventListener('click',e=>{const b=e.target.closest('button');if(b)send(b.textContent)});
   $('#svcGrid').innerHTML=SERVICES.map(s=>`<article><h3>${esc(s.name)}</h3><p>${esc(s.blurb)}</p><div class="meta"><span>${s.mins>=60?(s.mins/60)+' hr':s.mins+' min'}${s.mins>=480?' (full day)':''}</span><b>${s.from?'from £'+s.from:'free visit'}</b></div><button class="btn sm" type="button" data-book="${esc(s.name)}">Book this</button></article>`).join('');
