@@ -24,3 +24,9 @@ function doPost(e) {
   MailApp.sendEmail({ to: d.to, subject: d.subject, body: d.text, name: "Keith's Handyman Services (demo)" });
   return reply('ok');
 }
+
+// Run this once from the editor (pick "authorize" in the function list, then Run) to give the script
+// permission to send mail. It does not send anything.
+function authorize() {
+  MailApp.getRemainingDailyQuota();
+}
