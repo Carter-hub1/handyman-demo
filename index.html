@@ -111,6 +111,7 @@ button{font:inherit;color:inherit}
 .cform .mic{min-width:44px;padding:0;display:grid;place-items:center}
 .cform .mic.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);animation:micpulse 1.4s infinite}
 @keyframes micpulse{0%{box-shadow:0 0 0 0 var(--accent)}70%{box-shadow:0 0 0 9px transparent}100%{box-shadow:0 0 0 0 transparent}}
+.log .hear{align-self:flex-start;margin-top:-4px}
 .vhint{padding:0 16px 10px;font-size:12px;color:var(--muted);margin:0}
 .ticket{align-self:flex-start;max-width:92%;background:var(--surface);border:1px solid var(--ink);border-radius:6px;padding:12px 14px;display:grid;gap:4px;position:relative}
 .ticket::before,.ticket::after{content:"";position:absolute;top:50%;width:12px;height:12px;border-radius:50%;background:var(--surface2);border:1px solid var(--ink);transform:translateY(-50%)}
@@ -620,7 +621,7 @@ async function send(text){
     }
     if(!reply)throw{code:'empty'};
     bubble.textContent=reply;chat.turns.push({role:'assistant',content:reply});
-    if(voice)speak(reply);
+    if(voice)speak(reply,bubble);
   }catch(e){
     if(voice)stopVoice();
     bubble.remove();
@@ -656,19 +657,34 @@ function listen(){
   setStatus('Listening…');
   try{rec.start()}catch{stopVoice()}
 }
-function speak(text){
-  try{speechSynthesis.cancel()}catch{}
+function utter(text){
   const u=new SpeechSynthesisUtterance(text.replace(/KH-([A-Z0-9])([A-Z0-9])([A-Z0-9])([A-Z0-9])/g,'K H, $1 $2 $3 $4'));
   u.lang='en-GB';
   const v=(speechSynthesis.getVoices()||[]).find(x=>/en-GB/i.test(x.lang));if(v)u.voice=v;
-  u.onend=()=>listen();
-  u.onerror=e=>{if(e.error!=='canceled'&&e.error!=='interrupted')listen()};
+  return u;
+}
+// Phones can refuse speech that does not start from a tap. If that happens, offer a button and keep the conversation going.
+function hearButton(bubble,text){
+  if(!bubble||bubble.nextElementSibling&&bubble.nextElementSibling.classList.contains('hear'))return;
+  const b=document.createElement('button');b.type='button';b.className='btn sm hear';b.textContent='Tap to hear this';
+  b.onclick=()=>{try{speechSynthesis.cancel();speechSynthesis.speak(utter(text))}catch{}};
+  bubble.after(b);scrollLog();
+}
+function speak(text,bubble){
+  try{speechSynthesis.cancel()}catch{}
+  const u=utter(text);let started=false,done=false,guard=null;
+  const next=()=>{if(done)return;done=true;clearTimeout(guard);listen()};
+  guard=setTimeout(()=>{if(started||done)return;try{speechSynthesis.cancel()}catch{}hearButton(bubble,text);next()},3000);
+  u.onstart=()=>{started=true;clearTimeout(guard)};
+  u.onend=next;
+  u.onerror=e=>{if(e.error!=='canceled'&&e.error!=='interrupted'){hearButton(bubble,text);next()}};
   speechSynthesis.speak(u);
 }
 mic.addEventListener('click',()=>{
   if(voice){stopVoice();return}
   voice=true;mic.setAttribute('aria-pressed','true');mic.classList.add('on');
-  try{speechSynthesis.cancel()}catch{}
+  // Speak a silent word during the tap so the phone allows the assistant's replies later.
+  try{speechSynthesis.cancel();const k=new SpeechSynthesisUtterance(' ');k.volume=0;speechSynthesis.speak(k)}catch{}
   $('#chips').hidden=true;listen();
 });
 $('#cin').addEventListener('input',()=>{if(voice&&!chat.busy)stopVoice()});
