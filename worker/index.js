@@ -107,7 +107,7 @@ function toAnthropic(messages) {
 
 async function claudeChat(messages, tools, env, json) {
   const { system, messages: msgs } = toAnthropic(messages);
-  const body = { model: env.CLAUDE_MODEL || CLAUDE_MODEL, max_tokens: 600, temperature: 0.3, system, messages: msgs };
+  const body = { model: env.CLAUDE_MODEL || CLAUDE_MODEL, max_tokens: 600, system, messages: msgs };
   if (tools && tools.length) {
     body.tools = tools.map(t => ({
       name: t.function.name,
