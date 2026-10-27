@@ -7,26 +7,21 @@ function reply(text) {
 }
 
 function doPost(e) {
-  let d;
   try {
-    d = JSON.parse(e.postData.contents);
-  } catch (err) {
-    return reply('bad request');
-  }
-  const want = String(SECRET).trim();
-  const got = String(d.secret || '').trim();
-  if (got !== want) {
-    // Reports lengths and the first and last character only, never the phrases themselves.
-    return reply('no: the script secret has ' + want.length + ' characters, the Worker sent ' + got.length
-      + '. First character matches: ' + (got.charAt(0) === want.charAt(0))
-      + '. Last character matches: ' + (got.slice(-1) === want.slice(-1)) + '.');
-  }
-  try {
+    const d = JSON.parse(e.postData.contents);
+    const want = String(SECRET).trim();
+    const got = String(d.secret || '').trim();
+    if (got !== want) {
+      // Reports lengths and the first and last character only, never the phrases themselves.
+      return reply('no: the script secret has ' + want.length + ' characters, the Worker sent ' + got.length
+        + '. First character matches: ' + (got.charAt(0) === want.charAt(0))
+        + '. Last character matches: ' + (got.slice(-1) === want.slice(-1)) + '.');
+    }
     MailApp.sendEmail({ to: d.to, subject: d.subject, body: d.text, name: "Keith's Handyman Services (demo)" });
+    return reply('ok');
   } catch (err) {
-    return reply('error: ' + String(err.message || err).slice(0, 120));
+    return reply('error: ' + String((err && err.message) || err).slice(0, 120));
   }
-  return reply('ok');
 }
 
 // Run this once from the editor (pick "authorize" in the function list, then Run) to give the script
