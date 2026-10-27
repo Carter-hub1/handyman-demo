@@ -455,9 +455,9 @@ const chat={turns:[],busy:false,ctl:null};
 const log=$('#log');
 function scrollLog(){log.scrollTop=log.scrollHeight}
 function addMsg(role,text){const d=document.createElement('div');d.className='msg '+role;d.textContent=text;log.append(d);scrollLog();return d}
-function addCard(b){
+function addCard(b,mailed){
   const d=document.createElement('div');d.className='ticket';
-  d.innerHTML=`<span class="stamp">BOOKED</span><h3>${esc(b.serviceName)}</h3><div class="row">${esc(dayLong(b.date))}, ${fmt(b.start)}–${fmt(b.start+b.dur)}</div><div class="row">${esc(b.address)}</div><div class="ref">Ref ${esc(b.ref)}</div>`;
+  d.innerHTML=`<span class="stamp">BOOKED</span><h3>${esc(b.serviceName)}</h3><div class="row">${esc(dayLong(b.date))}, ${fmt(b.start)}–${fmt(b.start+b.dur)}</div><div class="row">${esc(b.address)}</div><div class="ref">Ref ${esc(b.ref)}</div>${mailed?`<div class="row">Confirmation emailed to ${esc(b.email)}</div>`:''}`;
   log.append(d);scrollLog();
 }
 function setStatus(t){const s=$('#cstatus');if(!t){s.hidden=true;return}s.hidden=false;s.textContent=t}
@@ -476,9 +476,9 @@ ${SERVICES.map(s=>`- ${s.id}: ${s.name}, ${s.mins/60>=1?s.mins/60+' hr':s.mins+'
 Rules:
 - Never state or guess availability, and never say a job is booked, without using the tools. Call find_slots before offering times, and offer at most 3 options.
 - Match the customer's description to a service. If it fits none, use "other" for a quote visit. Keith does not do electrical wiring, gas, roofing or tree removal: say so kindly and suggest a licensed specialist.
-- Before booking you need: the service, a day and time, the customer's name, mobile number and street address. Ask for missing items one or two at a time. Notes are optional.
+- Before booking you need: the service, a day and time, the customer's name, mobile number and street address. Also ask for their email address so a confirmation can be sent; it is optional and they may decline. Ask for missing items one or two at a time. Notes are optional.
 - Read the details back and get a clear yes before calling book_slot.
-- After booking, confirm in one or two lines and always give the reference code.
+- After booking, confirm in one or two lines and always give the reference code. Only say a confirmation email was sent if the book_slot result says confirmation_email is "sent"; if it says "not sent", say the booking is saved but the email could not be sent.
 - To change or cancel, ask for the reference or the phone number, use find_booking, then reschedule_booking or cancel_booking. Confirm before cancelling.
 - Emergencies (active flooding, gas smell, sparking electrics): tell them to make it safe and call emergency services if needed, and give Keith's urgent line ${PHONE}. Do not book it as a normal job.
 - Dates in tool calls are YYYY-MM-DD and times are 24-hour HH:MM. When speaking to the customer, use plain day names and 12-hour times like "10:30 am".
@@ -497,19 +497,30 @@ const TOOLS=[
     return{service:sv.name,duration_minutes:sv.mins,days};
   }},
  {name:'book_slot',description:'Create a booking on Keith\'s calendar. Only call after the customer has clearly confirmed all details. Fails if the time is no longer free. Returns the reference code.',
-  inputSchema:{type:'object',properties:{service:{type:'string'},date:{type:'string',description:'YYYY-MM-DD'},time:{type:'string',description:'HH:MM, 24-hour'},name:{type:'string'},phone:{type:'string'},address:{type:'string'},notes:{type:'string'}},required:['service','date','time','name','phone','address']},
+  inputSchema:{type:'object',properties:{service:{type:'string'},date:{type:'string',description:'YYYY-MM-DD'},time:{type:'string',description:'HH:MM, 24-hour'},name:{type:'string'},phone:{type:'string'},address:{type:'string'},email:{type:'string',description:'Customer email for the confirmation. Optional.'},notes:{type:'string'}},required:['service','date','time','name','phone','address']},
   async execute(i){
     setStatus('Booking it in…');await wait(500);
     const sv=svc(i.service),date=validDate(i.date),start=parseT(i.time);
     if(!date||start==null)throw new Error('date must be YYYY-MM-DD and time HH:MM');
     for(const f of['name','phone','address'])if(!String(i[f]||'').trim())throw new Error('Missing '+f);
     if(!slotsFor(date,sv.mins).includes(start))throw new Error('That time is not available (it may have just been taken). Call find_slots again and offer other times.');
+    const email=String(i.email||'').trim();
+    if(email&&!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email))throw new Error('That email address does not look valid. Ask the customer to check it.');
     const id=newId();
-    const b={ref:newRef(),date,start,dur:sv.mins,service:sv.id,serviceName:sv.name,name:String(i.name).trim(),phone:String(i.phone).trim(),address:String(i.address).trim(),notes:String(i.notes||'').trim(),status:'booked',source:'chat',createdAt:Date.now()};
+    const b={ref:newRef(),date,start,dur:sv.mins,service:sv.id,serviceName:sv.name,name:String(i.name).trim(),phone:String(i.phone).trim(),address:String(i.address).trim(),email,notes:String(i.notes||'').trim(),status:'booked',source:'chat',createdAt:Date.now()};
     mine.add(id);await save('bookings',id,b);
     state.fresh.add(id);if(state.view!=='handyman')state.unread++;
-    renderAll();addCard({id,...b});
-    return{ok:true,reference:b.ref,service:sv.name,date,time:hhmm(start),ends:hhmm(start+sv.mins)};
+    let mail=email?'not sent':'not requested';
+    if(email&&state.mode==='shared'){
+      setStatus('Sending your confirmation email…');
+      try{
+        const r=await fetch(API+'/notify',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({id,booking:b})});
+        const j=await r.json().catch(()=>({}));
+        if(r.ok&&j.sent)mail='sent';
+      }catch{}
+    }
+    renderAll();addCard({id,...b},mail==='sent');
+    return{ok:true,reference:b.ref,service:sv.name,date,time:hhmm(start),ends:hhmm(start+sv.mins),confirmation_email:mail};
   }},
  {name:'find_booking',description:"Find a customer's upcoming bookings by phone number or reference code.",
   inputSchema:{type:'object',properties:{phone:{type:'string'},reference:{type:'string'}}},
@@ -675,7 +686,7 @@ let tt;function toast(t){const el=$('#toast');el.textContent=t;el.hidden=false;c
 function openBooking(id){
   const b=state.bookings.get(id);if(!b)return;
   const sh=openSheet(`<div><span class="pill">${b.status==='done'?'Completed':'Booked'} · ${esc(b.source==='chat'?'via chat assistant':b.source==='sample'?'sample job':'manual')}</span></div><h2>${esc(b.serviceName)}</h2>
-  <dl><dt>When</dt><dd>${esc(dayLong(b.date))}<br>${fmt(b.start)}–${fmt(b.start+b.dur)}</dd><dt>Customer</dt><dd>${esc(b.name)}</dd><dt>Phone</dt><dd class="mono">${esc(b.phone)}</dd><dt>Address</dt><dd>${esc(b.address)}</dd><dt>Notes</dt><dd>${esc(b.notes||'None')}</dd><dt>Reference</dt><dd class="mono">${esc(b.ref)}</dd></dl>
+  <dl><dt>When</dt><dd>${esc(dayLong(b.date))}<br>${fmt(b.start)}–${fmt(b.start+b.dur)}</dd><dt>Customer</dt><dd>${esc(b.name)}</dd><dt>Phone</dt><dd class="mono">${esc(b.phone)}</dd>${b.email?`<dt>Email</dt><dd class="mono">${esc(b.email)}</dd>`:''}<dt>Address</dt><dd>${esc(b.address)}</dd><dt>Notes</dt><dd>${esc(b.notes||'None')}</dd><dt>Reference</dt><dd class="mono">${esc(b.ref)}</dd></dl>
   <div class="btns">${b.status==='booked'?'<button class="btn pine" type="button" id="sDone">Mark complete</button>':''}<button class="btn danger" type="button" id="sCancel">Cancel job</button><button class="btn ghost" type="button" id="sClose">Close</button></div>`);
   sh.querySelector('#sClose').onclick=closeSheet;
   const d=sh.querySelector('#sDone');if(d)d.onclick=async()=>{await save('bookings',id,{...b,status:'done'});closeSheet();renderAll();toast('Marked complete')};

@@ -27,6 +27,22 @@ Open the handyman view directly with `#handyman` on the end of the address.
 3. Put the Worker address in `config.js`.
 4. Push to GitHub and turn on Pages (Settings, Pages, deploy from the main branch).
 
+## Booking confirmation emails (optional)
+
+Off until you set it up. Emails are sent from your own Gmail through a small Google Apps Script, so no domain is needed.
+
+1. Go to script.google.com, create a new project, and paste in `worker/mail-relay.gs`. Replace `PASTE_A_LONG_RANDOM_TEXT_HERE` with a long random phrase and keep a copy of it.
+2. Deploy, then New deployment, type Web app, Execute as Me, Who has access Anyone. Approve the Gmail permission when asked. Copy the web app URL.
+3. In the `worker/` folder, add these as Worker secrets (one command at a time):
+   ```
+   npx wrangler secret put MAIL_WEBHOOK_URL --name keith-handyman-api    # the web app URL
+   npx wrangler secret put MAIL_SECRET --name keith-handyman-api         # the long random phrase
+   npx wrangler secret put KEITH_EMAIL --name keith-handyman-api         # optional: Keith gets a copy of each booking
+   ```
+4. Deploy the updated Worker code.
+
+Safety limits: at most 20 emails a day (change with an `EMAIL_DAILY_CAP` variable), one email per booking, a fixed message template, and a note that it is a demo. Gmail itself limits how many emails a personal account can send each day.
+
 ## Limits
 
 - Anyone with the link can use the chat, which spends your AI credit. Share the link only with Keith.
