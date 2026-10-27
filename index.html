@@ -561,9 +561,9 @@ async function send(text){
     for(let round=0;round<6&&!reply;round++){
       const r=await fetch(API+'/chat',{method:'POST',headers:{'content-type':'application/json'},signal:chat.ctl.signal,body:JSON.stringify({messages:msgs,tools:OPENAI_TOOLS})});
       if(r.status===429)throw{code:'rate_limited'};
-      if(!r.ok)throw{code:'upstream_error'};
+      if(!r.ok)throw{code:'upstream_error',detail:r.status+' '+(await r.text().catch(()=>'')).slice(0,300)};
       const m=((await r.json()).choices||[])[0]?.message;
-      if(!m)throw{code:'upstream_error'};
+      if(!m)throw{code:'upstream_error',detail:'The server sent an empty reply'};
       if(m.tool_calls&&m.tool_calls.length){
         msgs.push({role:'assistant',content:m.content||'',tool_calls:m.tool_calls});
         for(const tc of m.tool_calls){
@@ -581,7 +581,7 @@ async function send(text){
     bubble.remove();
     if(e&&e.name==='AbortError')e={code:'cancelled'};
     if(e&&e.code==='cancelled')addMsg('err','Stopped.');
-    else addMsg('err',ERR[e&&e.code]||'Something went wrong reaching the assistant. Send your message again.');
+    else addMsg('err',ERR[e&&e.code]||('Something went wrong reaching the assistant. Send your message again.'+(e&&(e.detail||e.message)?'\n\nDetail for the demo: '+(e.detail||e.message):'')));
   }finally{setBusy(false);$('#cin').focus({preventScroll:true});scrollLog()}
 }
 $('#cform').addEventListener('submit',e=>{e.preventDefault();send($('#cin').value)});
