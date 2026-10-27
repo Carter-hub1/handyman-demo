@@ -256,7 +256,7 @@ img{max-width:100%}
         <p class="lede">Tell the assistant what's broken. It checks Keith's real calendar and books the first time that suits you.</p>
         <div class="specs" aria-label="Quick facts">
           <div><span>Hours</span><b class="js-hours">Mon–Fri · 9 am–6 pm</b></div>
-          <div><span>Pricing</span><b>From $85, quoted up front</b></div>
+          <div><span>Pricing</span><b>From £85, quoted up front</b></div>
           <div><span>Workmanship</span><b>12-month guarantee</b></div>
           <div><span>Area</span><b>Within 25 km of the city</b></div>
         </div>
@@ -471,7 +471,7 @@ Now: ${n.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',
 Keith works ${hoursText()}. Service area: within 25 km of the city. Urgent phone line: ${PHONE}.
 
 Services (id, name, duration, starting price):
-${SERVICES.map(s=>`- ${s.id}: ${s.name}, ${s.mins/60>=1?s.mins/60+' hr':s.mins+' min'}, ${s.from?'from $'+s.from:'free quote visit'}`).join('\n')}
+${SERVICES.map(s=>`- ${s.id}: ${s.name}, ${s.mins/60>=1?s.mins/60+' hr':s.mins+' min'}, ${s.from?'from £'+s.from:'free quote visit'}`).join('\n')}
 
 Rules:
 - Never state or guess availability, and never say a job is booked, without using the tools. Call find_slots before offering times, and offer at most 3 options.
@@ -482,7 +482,7 @@ Rules:
 - To change or cancel, ask for the reference or the phone number, use find_booking, then reschedule_booking or cancel_booking. Confirm before cancelling.
 - Emergencies (active flooding, gas smell, sparking electrics): tell them to make it safe and call emergency services if needed, and give Keith's urgent line ${PHONE}. Do not book it as a normal job.
 - Dates in tool calls are YYYY-MM-DD and times are 24-hour HH:MM. When speaking to the customer, use plain day names and 12-hour times like "10:30 am".
-- Prices are starting prices; Keith confirms the final price on site.
+- Prices are in pounds sterling (£) and are starting prices; Keith confirms the final price on site.
 - Style: friendly, brief (under 60 words), plain text, no markdown, no bullet symbols or asterisks.`;
 };
 
@@ -592,7 +592,7 @@ function initChat(){
   const ex=['My kitchen tap is dripping','Mount a TV on Thursday','What do you charge?','I need to move my booking'];
   $('#chips').innerHTML=ex.map(t=>`<button type="button">${esc(t)}</button>`).join('');
   $('#chips').addEventListener('click',e=>{const b=e.target.closest('button');if(b)send(b.textContent)});
-  $('#svcGrid').innerHTML=SERVICES.map(s=>`<article><h3>${esc(s.name)}</h3><p>${esc(s.blurb)}</p><div class="meta"><span>${s.mins>=60?(s.mins/60)+' hr':s.mins+' min'}${s.mins>=480?' (full day)':''}</span><b>${s.from?'from $'+s.from:'free visit'}</b></div><button class="btn sm" type="button" data-book="${esc(s.name)}">Book this</button></article>`).join('');
+  $('#svcGrid').innerHTML=SERVICES.map(s=>`<article><h3>${esc(s.name)}</h3><p>${esc(s.blurb)}</p><div class="meta"><span>${s.mins>=60?(s.mins/60)+' hr':s.mins+' min'}${s.mins>=480?' (full day)':''}</span><b>${s.from?'from £'+s.from:'free visit'}</b></div><button class="btn sm" type="button" data-book="${esc(s.name)}">Book this</button></article>`).join('');
 }
 $('#svcGrid').addEventListener('click',e=>{const b=e.target.closest('[data-book]');if(!b)return;setView('customer');$('#chatBox').scrollIntoView({behavior:'smooth',block:'center'});send("I'd like to book: "+b.dataset.book)});
 document.addEventListener('click',e=>{const g=e.target.closest('[data-go]');if(g)document.getElementById(g.dataset.go).scrollIntoView({behavior:'smooth'})});
