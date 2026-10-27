@@ -43,7 +43,8 @@ Off until you set it up. Emails are sent from your own Gmail through a small Goo
    npx wrangler secret put MAIL_SECRET --name keith-handyman-api         # the long random phrase
    npx wrangler secret put KEITH_EMAIL --name keith-handyman-api         # optional: Keith gets a copy of each booking
    ```
-4. Deploy the updated Worker code.
+4. Deploy the updated Worker code, then open Keith's schedule, Hours & reset, and press Send a test email. It tells you in plain words what is wrong if it fails.
+   Optional: set a `SITE_URL` variable to the website address if the links in emails are wrong.
 
 Safety limits: at most 20 emails a day (change with an `EMAIL_DAILY_CAP` variable), one email per booking, a fixed message template, and a note that it is a demo. Gmail itself limits how many emails a personal account can send each day.
 

@@ -73,6 +73,17 @@ export default {
       return new Response(await r.text(), { status: r.status, headers: { ...cors, 'content-type': 'application/json' } });
     }
 
+    if (url.pathname === '/notify/test' && req.method === 'POST') {
+      const have = { webhook: !!env.MAIL_WEBHOOK_URL, secret: !!env.MAIL_SECRET, keith: !!env.KEITH_EMAIL };
+      if (!have.webhook || !have.secret || !have.keith) return json({ ok: false, step: 'config', have });
+      const day = new Date().toISOString().slice(0, 10);
+      const used = Number(await env.STATE.get('mailcount:' + day)) || 0;
+      if (used + 1 > (Number(env.EMAIL_DAILY_CAP) || 20)) return json({ ok: false, step: 'limit', have });
+      await env.STATE.put('mailcount:' + day, String(used + 1), { expirationTtl: 172800 });
+      const r = await sendMailDetailed(env, env.KEITH_EMAIL, 'Test email from the booking demo', 'If you can read this, booking emails are working.\n');
+      return json({ ok: r.ok, step: 'send', status: r.status, reply: r.body.slice(0, 160), have });
+    }
+
     if (url.pathname === '/notify' && req.method === 'POST') {
       if (!env.MAIL_WEBHOOK_URL || !env.MAIL_SECRET) return json({ sent: false, reason: 'email not configured' });
       const raw = await req.text();
@@ -97,7 +108,7 @@ export default {
       if (used + need > cap) return json({ sent: false, reason: 'daily limit reached' });
       await env.STATE.put('mailcount:' + day, String(used + need), { expirationTtl: 172800 });
       if (hasEmail) {
-        const m = customerMail(k);
+        const m = customerMail(k, env.SITE_URL || (env.ALLOWED_ORIGIN && env.ALLOWED_ORIGIN !== '*' ? env.ALLOWED_ORIGIN + '/handyman-demo/' : ''));
         if (!(await sendMail(env, k.email, m.subject, m.text))) return json({ sent: false, reason: 'mail service failed' }, 502);
       }
       await env.STATE.put('mailed:' + b.id, String(before + 1), { expirationTtl: 604800 });
@@ -193,30 +204,31 @@ function details(k) {
 }
 
 // What the customer is told, depending on where the booking stands.
-function customerMail(k) {
+function customerMail(k, site) {
   const hi = 'Hi ' + clean(k.name, 80) + ',\n\n';
   const price = pounds(k.offer);
   const note = k.keithNote ? 'Keith\'s note: ' + clean(k.keithNote, 200) + '\n' : '';
   const demo = '\nThis is a demo booking. No visit will take place.\n';
+  const chatAt = site ? 'open ' + site + ' and message the chat' : 'message the chat on the website';
   const ref = clean(k.ref, 12);
   if (k.status === 'pending' && k.priceBy === 'keith') {
     return { subject: 'Keith suggested a price for your booking (' + ref + ')',
       text: hi + 'Keith has looked at your booking request and suggests ' + price + ' for this job.\n' + note + '\n' + details(k)
-        + '\n\nTo accept, message the chat on the website with your reference and say you accept. Your time is held for you until then.\n' + demo };
+        + '\n\nTo accept, ' + chatAt + ' with your reference and the phone number you booked with, and say you accept. Your time is held for you until then.\n' + demo };
   }
   if (k.status === 'pending') {
     return { subject: 'We received your booking request (' + ref + ')',
       text: hi + 'Thanks for your booking request. It is pending until Keith approves your price of ' + price + '. We will email you as soon as he replies, and your time is held for you meanwhile.\n\n' + details(k)
-        + '\n\nTo change or cancel, message the chat on the website with your reference.\n' + demo };
+        + '\n\nTo change or cancel, ' + chatAt + ' with your reference and phone number.\n' + demo };
   }
   if (k.status === 'declined') {
     return { subject: 'An update on your booking request (' + ref + ')',
       text: hi + 'Sorry, Keith could not accept this booking' + (price ? ' at ' + price : '') + '.\n' + note + '\n' + details(k)
-        + '\n\nYou are welcome to message the chat on the website to book another time or suggest a different price.\n' + demo };
+        + '\n\nYou are welcome to ' + chatAt + ' to book another time or suggest a different price.\n' + demo };
   }
   return { subject: 'Your booking with Keith\'s Handyman Services (' + ref + ')',
     text: hi + 'Your booking with Keith\'s Handyman Services is confirmed.' + (k.priceBy === 'agreed' && price ? '\nAgreed price: ' + price : '') + '\n\n' + details(k)
-      + '\n\nTo change or cancel, message the chat on the website with your reference.\n' + demo };
+      + '\n\nTo change or cancel, ' + chatAt + ' with your reference and phone number.\n' + demo };
 }
 
 function keithMail(k, hasEmail) {
@@ -228,4 +240,20 @@ function keithMail(k, hasEmail) {
       text: 'A customer asked for ' + pounds(k.offer) + ' and the booking is pending your approval. Open Keith\'s schedule to accept, counter-offer or decline.\n\n' + body };
   }
   return { subject: 'New booking: ' + clean(k.name, 60) + ', ' + when, text: 'New demo booking\n\n' + body };
+}
+
+// Same as sendMail but says what Google answered, for the "Send a test email" button.
+async function sendMailDetailed(env, to, subject, text) {
+  try {
+    const r = await fetch(env.MAIL_WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ secret: env.MAIL_SECRET, to, subject, text }),
+      redirect: 'follow',
+    });
+    const body = (await r.text()).trim();
+    return { ok: r.ok && body === 'ok', status: r.status, body };
+  } catch (e) {
+    return { ok: false, status: 0, body: String(e) };
+  }
 }

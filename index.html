@@ -912,7 +912,20 @@ $('#bSet').onclick=()=>{
   <div class="days" role="group" aria-label="Working days">${[1,2,3,4,5,6,0].map(d=>`<label><input type="checkbox" value="${d}" ${h.days.includes(d)?'checked':''}> ${DAYN[d]}</label>`).join('')}</div>
   <div class="btns"><button class="btn pine" type="button" id="hSave">Save hours</button><button class="btn ghost" type="button" id="hX">Close</button></div>
   <hr style="border:0;border-top:1px solid var(--line);width:100%"><p style="color:var(--muted);font-size:14px">Demo tools: put the sample week back, with fresh dates, and clear everything else.</p>
-  <div class="btns"><button class="btn danger" type="button" id="hReset">Reset demo data</button></div>`);
+  <div class="btns"><button class="btn danger" type="button" id="hReset">Reset demo data</button></div>
+  <hr style="border:0;border-top:1px solid var(--line);width:100%"><p style="color:var(--muted);font-size:14px">Check that booking emails work. This sends one short test email to Keith's address.</p>
+  <div class="btns"><button class="btn" type="button" id="mTest">Send a test email</button></div><p id="mRes" style="font-size:14px;margin:0" role="status"></p>`);
+  sh.querySelector('#mTest').onclick=async e=>{
+    const out=sh.querySelector('#mRes');
+    if(!API||state.mode!=='shared'){out.textContent='Email needs the Worker connected.';return}
+    e.target.disabled=true;out.textContent='Sending…';
+    try{
+      const r=await fetch(API+'/notify/test',{method:'POST'});
+      if(r.status===404){out.textContent='The Worker needs updating first. It does not have the email test yet.'}
+      else out.textContent=explainMail(await r.json());
+    }catch{out.textContent='Could not reach the Worker.'}
+    e.target.disabled=false;
+  };
   sh.querySelector('#hX').onclick=closeSheet;
   sh.querySelector('#hSave').onclick=async()=>{
     const s=+sh.querySelector('#hS').value,e=+sh.querySelector('#hE').value,days=[...sh.querySelectorAll('.days input:checked')].map(i=>+i.value);
@@ -922,6 +935,20 @@ $('#bSet').onclick=()=>{
   const r=sh.querySelector('#hReset');let armed=false;
   r.onclick=async()=>{if(!armed){armed=true;r.textContent='Tap again to reset';return}r.disabled=true;r.textContent='Resetting…';await resetDemo();closeSheet();toast('Demo data reset')};
 };
+function explainMail(j){
+  if(j.ok)return "Sent. Check Keith's inbox, and the spam folder.";
+  const h=j.have||{};
+  if(j.step==='config'){
+    const missing=[!h.webhook&&'MAIL_WEBHOOK_URL',!h.secret&&'MAIL_SECRET',!h.keith&&'KEITH_EMAIL'].filter(Boolean);
+    return 'Not set up yet. The Worker is missing: '+missing.join(', ')+'.';
+  }
+  if(j.step==='limit')return "Today's email limit has been reached. Try again tomorrow.";
+  const body=String(j.reply||'');
+  if(body.trim()==='no')return 'The Google script refused it. The secret in the script does not match MAIL_SECRET in Cloudflare.';
+  if(/<html|<!doctype|sign in|accounts\.google/i.test(body))return 'Google answered with a web page instead of sending. The script is probably not shared with "Anyone", not yet authorised, or the web app URL is wrong.';
+  if(/doPost|function not found/i.test(body))return 'The script has no doPost function, or its latest version is not deployed.';
+  return 'It failed (status '+j.status+'): '+body.slice(0,120);
+}
 async function resetDemo(){
   for(const id of[...state.bookings.keys()])await save('bookings',id,null);
   for(const id of[...state.blocks.keys()])await save('blocks',id,null);
