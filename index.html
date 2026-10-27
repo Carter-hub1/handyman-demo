@@ -108,6 +108,10 @@ button{font:inherit;color:inherit}
 .cstatus{padding:0 16px 8px;font-size:13px;color:var(--muted);font-family:var(--f-mono)}
 .cform{display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--line);padding-bottom:max(12px,env(safe-area-inset-bottom,0px))}
 .cform input{flex:1;min-width:0;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;padding:0 14px;min-height:44px;font:inherit}
+.cform .mic{min-width:44px;padding:0;display:grid;place-items:center}
+.cform .mic.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);animation:micpulse 1.4s infinite}
+@keyframes micpulse{0%{box-shadow:0 0 0 0 var(--accent)}70%{box-shadow:0 0 0 9px transparent}100%{box-shadow:0 0 0 0 transparent}}
+.vhint{padding:0 16px 10px;font-size:12px;color:var(--muted);margin:0}
 .ticket{align-self:flex-start;max-width:92%;background:var(--surface);border:1px solid var(--ink);border-radius:6px;padding:12px 14px;display:grid;gap:4px;position:relative}
 .ticket::before,.ticket::after{content:"";position:absolute;top:50%;width:12px;height:12px;border-radius:50%;background:var(--surface2);border:1px solid var(--ink);transform:translateY(-50%)}
 .ticket::before{left:-7px}.ticket::after{right:-7px}
@@ -269,9 +273,11 @@ img{max-width:100%}
         <form id="cform" class="cform" autocomplete="off">
           <label class="sr" for="cin">Your message</label>
           <input id="cin" placeholder="Describe the job…" enterkeyhint="send">
+          <button id="cmic" class="btn mic" type="button" aria-pressed="false" aria-label="Talk to the assistant" title="Talk to the assistant" hidden><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
           <button id="csend" class="btn accent" type="submit">Send</button>
           <button id="cstop" class="btn ghost" type="button" hidden>Stop</button>
         </form>
+        <p class="vhint" id="vhint" hidden>Tap the mic to talk. Your browser turns speech into text, and Chrome sends the audio to Google to do it.</p>
       </section>
     </div>
   </section>
@@ -596,15 +602,58 @@ async function send(text){
     }
     if(!reply)throw{code:'empty'};
     bubble.textContent=reply;chat.turns.push({role:'assistant',content:reply});
+    if(voice)speak(reply);
   }catch(e){
+    if(voice)stopVoice();
     bubble.remove();
     if(e&&e.name==='AbortError')e={code:'cancelled'};
     if(e&&e.code==='cancelled')addMsg('err','Stopped.');
     else addMsg('err',ERR[e&&e.code]||('Something went wrong reaching the assistant. Send your message again.'+(e&&(e.detail||e.message)?'\n\nDetail for the demo: '+(e.detail||e.message):'')));
   }finally{setBusy(false);$('#cin').focus({preventScroll:true});scrollLog()}
 }
-$('#cform').addEventListener('submit',e=>{e.preventDefault();send($('#cin').value)});
-$('#cstop').addEventListener('click',()=>chat.ctl&&chat.ctl.abort());
+$('#cform').addEventListener('submit',e=>{e.preventDefault();stopVoice();send($('#cin').value)});
+$('#cstop').addEventListener('click',()=>{stopVoice();chat.ctl&&chat.ctl.abort()});
+
+/* ---------- voice: talk to the assistant and hear its replies ---------- */
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+const mic=$('#cmic');
+let voice=false,rec=null,heard='';
+if(SR&&'speechSynthesis' in window){mic.hidden=false;$('#vhint').hidden=false}
+function stopVoice(note){
+  voice=false;mic.setAttribute('aria-pressed','false');mic.classList.remove('on');
+  try{rec&&rec.abort()}catch{}
+  try{speechSynthesis.cancel()}catch{}
+  if(!chat.busy)setStatus(note||'');
+}
+function listen(){
+  if(!voice||chat.busy)return;
+  rec=new SR();rec.lang='en-GB';rec.interimResults=true;rec.continuous=false;heard='';
+  rec.onresult=e=>{heard=Array.from(e.results).map(r=>r[0].transcript).join('');$('#cin').value=heard};
+  rec.onerror=e=>{
+    if(e.error==='aborted')return;
+    if(e.error==='not-allowed'||e.error==='service-not-allowed'){stopVoice();addMsg('err','The microphone is blocked. Allow it for this site in your browser, then tap the mic again.');return}
+    stopVoice(e.error==='no-speech'?"Didn't catch that. Tap the mic to try again.":'Voice stopped. Tap the mic to try again.');
+  };
+  rec.onend=()=>{if(!voice)return;const t=heard.trim();if(t)send(t);else stopVoice("Didn't catch that. Tap the mic to try again.")};
+  setStatus('Listening…');
+  try{rec.start()}catch{stopVoice()}
+}
+function speak(text){
+  try{speechSynthesis.cancel()}catch{}
+  const u=new SpeechSynthesisUtterance(text.replace(/KH-([A-Z0-9])([A-Z0-9])([A-Z0-9])([A-Z0-9])/g,'K H, $1 $2 $3 $4'));
+  u.lang='en-GB';
+  const v=(speechSynthesis.getVoices()||[]).find(x=>/en-GB/i.test(x.lang));if(v)u.voice=v;
+  u.onend=()=>listen();
+  u.onerror=e=>{if(e.error!=='canceled'&&e.error!=='interrupted')listen()};
+  speechSynthesis.speak(u);
+}
+mic.addEventListener('click',()=>{
+  if(voice){stopVoice();return}
+  voice=true;mic.setAttribute('aria-pressed','true');mic.classList.add('on');
+  try{speechSynthesis.cancel()}catch{}
+  $('#chips').hidden=true;listen();
+});
+$('#cin').addEventListener('input',()=>{if(voice&&!chat.busy)stopVoice()});
 
 function initChat(){
   addMsg('bot',"Hi, I'm Keith's booking assistant. What needs fixing?");
