@@ -188,7 +188,8 @@
     isOpen = false;
     panel.hidden = true; launch.hidden = false;
     launch.setAttribute('aria-expanded', 'false');
-    launch.focus({ preventScroll: true });
+    var back = launch.offsetParent ? launch : document.querySelector('.mbar [data-open]');
+    if (back) back.focus({ preventScroll: true });
     save();
   }
 
