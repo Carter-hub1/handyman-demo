@@ -11,7 +11,7 @@ id = "PASTE_KV_NAMESPACE_ID_HERE"
 [vars]
 # The exact address of the site, no path and no trailing slash, e.g. https://your-name.github.io
 # Several addresses can be separated with commas.
-ALLOWED_ORIGIN = "https://YOUR-NAME.github.io"
+ALLOWED_ORIGIN = "https://carter-hub1.github.io"
 # Optional limits (the defaults are shown):
 # HOURLY_CAP = "40"   messages per visitor per hour
 # DAILY_CAP = "400"   messages for the whole demo per day
