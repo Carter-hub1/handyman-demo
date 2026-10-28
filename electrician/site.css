@@ -238,3 +238,4 @@ p { margin: 0 0 1em; }
 .ruled li.withpic strong { margin-top: 0; }
 .ruled li.withpic span { display: block; }
 @media (max-width: 420px) { .ruled li.withpic { grid-template-columns: 5.5rem minmax(0, 1fr); gap: 12px; } }
+img.illus { aspect-ratio: 3 / 2; object-fit: cover; background: var(--bubble); }
