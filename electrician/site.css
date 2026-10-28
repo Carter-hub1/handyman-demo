@@ -230,3 +230,11 @@ p { margin: 0 0 1em; }
   .as-log { scroll-behavior: auto; }
   .msg.typing i { animation: none; opacity: .7; }
 }
+
+/* Illustrations */
+.illus { display: block; width: 100%; height: auto; border-radius: 4px; border: 1px solid var(--line); }
+.ruled li.withpic { display: grid; grid-template-columns: 7rem minmax(0, 1fr); gap: 16px; align-items: start; }
+.ruled li.withpic > a { display: block; }
+.ruled li.withpic strong { margin-top: 0; }
+.ruled li.withpic span { display: block; }
+@media (max-width: 420px) { .ruled li.withpic { grid-template-columns: 5.5rem minmax(0, 1fr); gap: 12px; } }
