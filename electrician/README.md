@@ -7,6 +7,7 @@ This demo lives in the `electrician/` folder of the handyman-demo repo. The hand
 A visitor chats as a customer. When the assistant has the details, a **job sheet** fills in beside the chat. That is what the electrician would receive.
 
 - `index.html`, `services.html`, `areas.html`, `about.html`, `faqs.html` and `contact.html` are the website. `site.css` and `site.js` are shared. `site.js` holds the chat assistant, which sits in the corner of every page and keeps the conversation as visitors move around.
+- `owner.html` and `owner.js` are the owner inbox: a private page that lists the finished enquiries, with photos, and lets Sam mark them handled.
 - `demo.html` is the chat beside a live job sheet, for showing what the owner receives. The site is hosted on GitHub Pages.
 - `config.js` holds the address of the Worker.
 - `worker/` is a Cloudflare Worker. `prompt.js` holds the assistant's instructions, and `index.js` applies the limits and calls Claude. The instructions and the AI key stay on the server, so visitors cannot read or change them.
@@ -27,6 +28,15 @@ A visitor chats as a customer. When the assistant has the details, a **job sheet
 3. Put the Worker address in `config.js`.
 4. Push to GitHub. This repo's Pages site serves the folder at `https://your-name.github.io/handyman-demo/electrician/` (Settings, Pages, deploy from the `main` branch, root folder, if it is not already on).
 5. Open the page and run the test script from the work plan before you share the link.
+
+## Photos, the owner inbox and email to Sam
+
+- **Photos.** The camera button in the chat lets a customer attach up to two photos. The browser shrinks each one to a small JPEG, which also removes its location data, and the Worker passes it to Claude. Photos for an enquiry are kept in KV for 30 days, at most 6 per enquiry.
+- **Saved enquiries.** When a chat ends in a job sheet, the Worker saves it in the same `LIMITS` KV namespace, one record per chat, and deletes it after 30 days.
+- **Owner inbox.** Open `owner.html` and enter the passphrase. Set it once with `npx.cmd wrangler secret put OWNER_TOKEN` (make up a long phrase). Ten wrong guesses lock that visitor out for an hour. Anyone with the passphrase can read every enquiry and photo, so treat it like a password.
+- **Email to Sam (optional).** Each new enquiry can be emailed once. Set three more secrets with `npx.cmd wrangler secret put`: `MAIL_WEBHOOK_URL` (the web app address from `mail-relay.gs`), `MAIL_SECRET` (the long phrase inside that script) and `SAM_EMAIL` (who receives it). The same script works for the Keith demo. At most 20 emails a day (`EMAIL_DAILY_CAP`). The inbox link in the email comes from `ALLOWED_ORIGIN`, or set `OWNER_URL` to override it.
+- **Free KV limits.** The free plan allows 1,000 writes a day. Each chat message uses two (the counters), and each photo or finished enquiry adds one or two more, so keep `DAILY_CAP` at 400 or lower on the free plan.
+- **Before a real client uses it.** Customers' names, phone numbers, addresses and photos are personal data. You need a privacy notice that says where they are stored, who sees them and for how long, and a way to delete them on request. Take proper advice first.
 
 ## Limits that protect your AI credit
 

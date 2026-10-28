@@ -12,6 +12,7 @@
   }
 
   /* ---------- Site-wide assistant ---------- */
+  if (window.SAM_NO_ASSISTANT) return;
   var API = String(window.SAM_API || '').replace(/\/$/, '');
   var KEY = 'sam.chat.v1';
   var GREETING = "Hi, I'm Sam's AI assistant. Tell me what you need doing, or what has gone wrong, and I'll pass the details to Sam.";
@@ -24,15 +25,47 @@
   var view = [];    // what the visitor sees: {k:'bot'|'me'|'problem'|'sheet', t, rows}
   var isOpen = false;
   var busy = false, ctl = null, gen = 0;
+  var cid = '';      // random id for this chat, so the finished enquiry is saved once
+  var pending = []; // photos chosen but not sent yet (data URLs)
 
   function load() {
     try {
       var s = JSON.parse(sessionStorage.getItem(KEY) || 'null');
-      if (s && Array.isArray(s.turns) && Array.isArray(s.view)) { turns = s.turns; view = s.view; isOpen = !!s.open; }
+      if (s && Array.isArray(s.turns) && Array.isArray(s.view)) { turns = s.turns; view = s.view; isOpen = !!s.open; if (typeof s.cid === 'string' && /^[a-f0-9]{32}$/.test(s.cid)) cid = s.cid; }
     } catch (e) { /* storage blocked: start fresh */ }
   }
   function save() {
-    try { sessionStorage.setItem(KEY, JSON.stringify({ turns: turns, view: view, open: isOpen })); } catch (e) { /* ignore */ }
+    try { sessionStorage.setItem(KEY, JSON.stringify({ turns: turns, cid: cid, open: isOpen, view: view.map(function (v) { var c = {}; for (var k in v) if (k !== 'thumbs') c[k] = v[k]; return c; }) })); } catch (e) { /* ignore */ }
+  }
+
+  function newId() {
+    var a = new Uint8Array(16);
+    (window.crypto || window.msCrypto).getRandomValues(a);
+    return Array.prototype.map.call(a, function (b) { return ('0' + b.toString(16)).slice(-2); }).join('');
+  }
+
+  // Shrinks a photo to a small JPEG (this also drops its location data) and returns it as a data URL.
+  function prepImage(file) {
+    return new Promise(function (resolve, reject) {
+      if (!file || !/^image\//.test(file.type) || file.size > 20 * 1024 * 1024) return reject(new Error('type'));
+      var url = URL.createObjectURL(file);
+      var img = new Image();
+      img.onload = function () {
+        URL.revokeObjectURL(url);
+        var tries = [[1024, 0.72], [800, 0.6], [640, 0.5]];
+        for (var i = 0; i < tries.length; i++) {
+          var scale = Math.min(1, tries[i][0] / Math.max(img.width, img.height));
+          var c = document.createElement('canvas');
+          c.width = Math.max(1, Math.round(img.width * scale)); c.height = Math.max(1, Math.round(img.height * scale));
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          var d = c.toDataURL('image/jpeg', tries[i][1]);
+          if (d.indexOf('data:image/jpeg;base64,') === 0 && d.length <= 440000) return resolve(d);
+        }
+        reject(new Error('big'));
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('read')); };
+      img.src = url;
+    });
   }
 
   function el(tag, cls, text) {
@@ -98,7 +131,7 @@
   }
 
   /* DOM */
-  var launch, panel, logEl, chipsEl, form, input, sendBtn, closeBtn, restartBtn;
+  var launch, panel, logEl, chipsEl, form, input, sendBtn, closeBtn, restartBtn, attachBtn, fileInput, pendingEl;
 
   function build() {
     launch = el('button', 'as-launch');
@@ -128,9 +161,16 @@
     var lab = el('label', 'sr', 'Your message'); lab.setAttribute('for', 'as-msg');
     input = el('textarea'); input.id = 'as-msg'; input.rows = 1; input.maxLength = 600; input.placeholder = 'Describe the job or the problem';
     sendBtn = el('button', 'as-send', 'Send'); sendBtn.type = 'submit';
-    form.appendChild(lab); form.appendChild(input); form.appendChild(sendBtn);
+    attachBtn = el('button', 'as-attach'); attachBtn.type = 'button';
+    attachBtn.setAttribute('aria-label', 'Attach a photo');
+    attachBtn.title = 'Attach a photo';
+    attachBtn.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M9 4 7.2 6H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-3.2L15 4H9zm3 4.5a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9zm0 2a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z"/></svg>';
+    fileInput = el('input'); fileInput.type = 'file'; fileInput.accept = 'image/*'; fileInput.multiple = true; fileInput.hidden = true;
+    fileInput.setAttribute('aria-hidden', 'true'); fileInput.tabIndex = -1;
+    pendingEl = el('div', 'as-pending');
+    form.appendChild(attachBtn); form.appendChild(lab); form.appendChild(input); form.appendChild(sendBtn);
 
-    panel.appendChild(top); panel.appendChild(note); panel.appendChild(logEl); panel.appendChild(chipsEl); panel.appendChild(form);
+    panel.appendChild(top); panel.appendChild(note); panel.appendChild(logEl); panel.appendChild(chipsEl); panel.appendChild(pendingEl); panel.appendChild(form); panel.appendChild(fileInput);
     document.body.appendChild(launch);
     document.body.appendChild(panel);
   }
@@ -141,7 +181,15 @@
     if (it.k === 'sheet') logEl.appendChild(sheetNode(it.rows));
     else {
       var m = el('div', 'msg ' + it.k);
-      if (it.k === 'bot') richText(m, it.t); else m.textContent = it.t;
+      if (it.k === 'bot') richText(m, it.t);
+      else {
+        if (it.thumbs && it.thumbs.length) {
+          var row = el('div', 'msg-photos');
+          it.thumbs.forEach(function (d) { var im = el('img', 'msg-thumb'); im.src = d; im.alt = 'Photo you sent'; row.appendChild(im); });
+          m.appendChild(row);
+        } else if (it.p) m.appendChild(el('div', 'msg-note', it.p === 1 ? 'Photo attached' : it.p + ' photos attached'));
+        if (it.t) m.appendChild(el('div', null, it.t));
+      }
       logEl.appendChild(m);
     }
   }
@@ -170,6 +218,7 @@
     busy = on;
     sendBtn.disabled = on;
     input.disabled = on || turns.length >= MAX_TURNS;
+    if (attachBtn) attachBtn.disabled = on || pending.length >= 2 || turns.length >= MAX_TURNS;
     if (!on && !input.disabled && isOpen) input.focus({ preventScroll: true });
   }
 
@@ -196,7 +245,8 @@
   function reset() {
     gen++;
     if (ctl) ctl.abort();
-    turns = []; view = []; busy = false;
+    turns = []; view = []; busy = false; pending = []; cid = newId();
+    renderPending();
     input.value = ''; autosize();
     add({ k: 'bot', t: GREETING });
     redraw();
@@ -204,15 +254,41 @@
     input.focus({ preventScroll: true });
   }
 
+  function renderPending() {
+    pendingEl.textContent = '';
+    pending.forEach(function (d, i) {
+      var box = el('div', 'as-pend');
+      var im = el('img'); im.src = d; im.alt = 'Photo ready to send';
+      var x = el('button', null, '\u00d7'); x.type = 'button'; x.setAttribute('aria-label', 'Remove this photo');
+      x.addEventListener('click', function () { pending.splice(i, 1); renderPending(); input.focus({ preventScroll: true }); });
+      box.appendChild(im); box.appendChild(x); pendingEl.appendChild(box);
+    });
+    attachBtn.disabled = busy || pending.length >= 2 || turns.length >= MAX_TURNS;
+  }
+
+  async function addFiles(files) {
+    for (var i = 0; i < files.length && pending.length < 2; i++) {
+      try { pending.push(await prepImage(files[i])); }
+      catch (e) { add({ k: 'problem', t: "That photo couldn't be used. Try a different one (a JPG or PNG from your camera or gallery)." }); }
+    }
+    renderPending();
+  }
+
   async function send(text) {
     text = String(text || '').trim();
-    if (!text || busy) return;
+    var photos = pending.slice();
+    if ((!text && !photos.length) || busy) return;
+    if (!text) text = 'Here is a photo.';
     if (!isOpen) open(false);
     if (!API) { add({ k: 'me', t: text }); add({ k: 'problem', t: "This demo isn't connected to its server yet." }); input.value = ''; autosize(); return; }
     chipsEl.textContent = '';
-    add({ k: 'me', t: text });
-    turns.push({ role: 'user', content: text });
+    var item = { k: 'me', t: text };
+    if (photos.length) { item.thumbs = photos; item.p = photos.length; }
+    add(item);
+    turns.push({ role: 'user', content: photos.length ? text + ' [Photo attached]' : text });
     input.value = ''; autosize();
+    pending = []; renderPending();
+    if (!cid) { cid = newId(); save(); }
     setBusy(true);
     var typing = el('div', 'msg bot typing');
     typing.setAttribute('aria-label', 'The assistant is typing');
@@ -224,7 +300,7 @@
     try {
       var res = await fetch(API + '/chat', {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ messages: turns }), signal: ctl.signal
+        body: JSON.stringify(photos.length ? { messages: turns, cid: cid, images: photos } : { messages: turns, cid: cid }), signal: ctl.signal
       });
       var data = {};
       try { data = await res.json(); } catch (e) { /* not JSON */ }
@@ -232,6 +308,7 @@
       typing.remove();
       if (!res.ok || !data.reply) {
         turns.pop();
+        if (photos.length) { pending = photos; renderPending(); }
         add({ k: 'problem', t: data.message || (res.status === 429 ? 'The demo is busy. Please try again in a little while.' : 'Something went wrong on the server. Your message was not sent, so try again.') });
       } else {
         var parts = splitReply(data.reply);
@@ -244,6 +321,7 @@
       if (mine !== gen) return;
       typing.remove();
       turns.pop();
+      if (photos.length) { pending = photos; renderPending(); }
       add({ k: 'problem', t: err && err.name === 'AbortError'
         ? 'The assistant took too long to answer. Your message was not sent, so try again.'
         : "Can't reach the demo server. Check your connection, then try again." });
@@ -264,6 +342,8 @@
     closeBtn.addEventListener('click', close);
     restartBtn.addEventListener('click', reset);
     form.addEventListener('submit', function (e) { e.preventDefault(); send(input.value); });
+    attachBtn.addEventListener('click', function () { fileInput.click(); });
+    fileInput.addEventListener('change', function () { var f = Array.prototype.slice.call(fileInput.files || []); fileInput.value = ''; addFiles(f); });
     input.addEventListener('input', autosize);
     input.addEventListener('keydown', function (e) {
       if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(input.value); }

@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Owner inbox | Sam's Electrical (demo)</title>
+<meta name="description" content="Private inbox for the enquiries taken by the website assistant.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2' y='3' width='6' height='18' rx='3' fill='%237A4A2B'/%3E%3Crect x='9' y='3' width='6' height='18' rx='3' fill='%231F5FBF'/%3E%3Crect x='16' y='3' width='6' height='18' rx='3' fill='%23F2C200'/%3E%3Crect x='16' y='12' width='6' height='9' rx='3' fill='%231E8A4C'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to the content</a>
+<div class="demobar"><div class="wrap">Demo website. Sam's Electrical is a made-up business for testing an AI enquiry assistant.</div></div>
+<header class="head">
+  <div class="wrap">
+    <a class="brand" href="./"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="3" width="6" height="18" rx="3" fill="#7A4A2B"/><rect x="9" y="3" width="6" height="18" rx="3" fill="#1F5FBF"/><rect x="16" y="3" width="6" height="18" rx="3" fill="#F2C200"/><rect x="16" y="12" width="6" height="9" rx="3" fill="#1E8A4C"/></svg><span>Sam's Electrical</span></a>
+    <button class="menu" id="menu" type="button" aria-expanded="false" aria-controls="nav">Menu</button>
+    <nav class="nav" id="nav" aria-label="Main">
+      <a href="./">Home</a>
+      <a href="services.html">Services</a>
+      <a href="areas.html">Areas</a>
+      <a href="about.html">About</a>
+      <a href="faqs.html">FAQs</a>
+      <a href="contact.html">Contact</a>
+      
+    </nav>
+  </div>
+</header>
+<div class="safety"><div class="wrap"><strong>Fire, smoke or an electric shock? Call 999.</strong> No power on your whole street? Call 105. Sam doesn't do out-of-hours call-outs.</div></div>
+<main id="main">
+
+<section class="page-head"><div class="wrap">
+  <h1>Owner inbox</h1>
+  <p class="lede">Enquiries from the website assistant, newest first. For Sam only.</p>
+</div></section>
+<section class="band" style="padding-top:0"><div class="wrap">
+  <form class="login" id="login" autocomplete="off">
+    <label for="pass"><strong>Passphrase</strong></label>
+    <div class="login-row">
+      <input id="pass" type="password" autocomplete="current-password" required>
+      <button class="btn" type="submit">Open inbox</button>
+    </div>
+    <p id="loginmsg" class="quiet" role="alert"></p>
+  </form>
+  <div id="inbox" hidden>
+    <div class="inbox-bar">
+      <div class="tabs" role="group" aria-label="Show">
+        <button type="button" class="tab" data-f="new" aria-pressed="true">New <span id="cNew"></span></button>
+        <button type="button" class="tab" data-f="handled" aria-pressed="false">Handled</button>
+        <button type="button" class="tab" data-f="all" aria-pressed="false">All</button>
+      </div>
+      <span class="bar-gap"></span>
+      <button type="button" class="linkbtn" id="refresh">Refresh</button>
+      <button type="button" class="linkbtn" id="lock">Lock</button>
+    </div>
+    <p id="status" class="quiet" role="status"></p>
+    <div class="inbox-grid">
+      <ul class="inlist" id="list"></ul>
+      <section id="detail" aria-live="polite"></section>
+    </div>
+  </div>
+</div></section>
+</main>
+<footer class="foot">
+  <div class="wrap">
+    <div class="cols">
+      <div>
+        <h3>Sam's Electrical</h3>
+        <p>Electrical work for homes and small businesses in West Lothian.</p>
+        <p>Mon to Fri, 8am to 5pm. Closed weekends.</p>
+      </div>
+      <div>
+        <h3>Pages</h3>
+        <ul>
+          <li><a href="services.html">Services</a></li>
+          <li><a href="areas.html">Areas we cover</a></li>
+          <li><a href="about.html">About Sam</a></li>
+          <li><a href="faqs.html">FAQs</a></li>
+          <li><a href="contact.html">Contact</a></li>
+        </ul>
+      </div>
+      <div>
+        <h3>Contact</h3>
+        <ul>
+          <li><a href="tel:01314960123">0131 496 0123</a></li>
+          <li><a href="mailto:sam@example.com">sam@example.com</a></li>
+          <li><a href="demo.html">See the job sheet Sam receives</a></li>
+          <li><a href="owner.html">Owner inbox (demo)</a></li>
+        </ul>
+      </div>
+    </div>
+    <p class="fine">This is a demo. The business, phone number and email address are made up, and nothing on this site is a real offer of work. The chat assistant is an AI that can make mistakes.</p>
+  </div>
+</footer>
+<script>window.SAM_NO_ASSISTANT = true;</script>
+<script src="config.js"></script>
+<script src="site.js"></script>
+<script src="owner.js"></script>
+</body>
+</html>
