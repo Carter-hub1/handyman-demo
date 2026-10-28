@@ -119,7 +119,7 @@
     closeBtn = el('button', null, 'Close'); closeBtn.type = 'button';
     top.appendChild(restartBtn); top.appendChild(closeBtn);
 
-    var note = el('p', 'as-note', "AI assistant for a demo business. Please don't enter real personal details. Messages go to Claude, an AI service, to write replies. For fire, smoke or a shock, call 999.");
+    var note = el('p', 'as-note', "AI assistant for a demo business. Please don't enter real personal details. For fire, smoke or a shock, call 999.");
 
     logEl = el('div', 'as-log'); logEl.setAttribute('role', 'log'); logEl.setAttribute('aria-live', 'polite'); logEl.setAttribute('aria-relevant', 'additions');
     chipsEl = el('div', 'as-chips');
