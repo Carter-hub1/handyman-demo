@@ -30,7 +30,7 @@ function page({ file, title, desc, body, bare = false }) {
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400..800;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="site.css?v=4">
+<link rel="stylesheet" href="site.css?v=5">
 </head>
 <body>
 <a class="skip" href="#main">Skip to the content</a>
@@ -45,7 +45,6 @@ function page({ file, title, desc, body, bare = false }) {
     </nav>
   </div>
 </header>
-<div class="safety"><div class="wrap"><strong>Fire, smoke or a gas smell? Call 999.</strong> For gas, also call 0800 111 999. Fraser doesn't do out-of-hours call-outs.</div></div>
 <main id="main">
 ${body}
 </main>
@@ -81,7 +80,7 @@ ${body}
 </footer>
 ${bare ? '<script>window.SAM_NO_ASSISTANT = true;</script>' : `<div class="mbar"><a class="btn ghost" href="tel:${TEL}">Call Fraser</a><button class="btn" type="button" data-open>Ask the assistant</button></div>`}
 <script src="config.js"></script>
-<script src="site.js?v=4"></script>${bare ? '\n<script src="owner.js?v=4"></script>' : ''}
+<script src="site.js?v=5"></script>${bare ? '\n<script src="owner.js?v=5"></script>' : ''}
 </body>
 </html>
 `;
@@ -333,7 +332,6 @@ pages.push(page({
       <h2 style="margin-bottom:12px">Ask the assistant</h2>
       <p>Open any time of day. Describe the job, add a photo if you like, and the assistant collects the details Fraser needs.</p>
       <button class="btn" type="button" data-open>Start a chat</button>
-      <p class="quiet" style="margin-top:14px">For fire, smoke or a gas smell, call 999 instead.</p>
     </div>
     <dl>
       <dt>Phone (demo number)</dt><dd><a href="tel:${TEL}">${PHONE}</a></dd>
