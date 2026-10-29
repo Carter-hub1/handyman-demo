@@ -1,0 +1,18 @@
+name = "willow-lane-api"
+main = "index.js"
+compatibility_date = "2025-01-01"
+
+# Counts messages so one person, or the whole demo in a day, cannot spend your AI credit.
+# Create it with:  npx.cmd wrangler kv namespace create LIMITS   and paste the id below. Use a NEW namespace, not the one the other demos use.
+[[kv_namespaces]]
+binding = "LIMITS"
+id = "PASTE_KV_NAMESPACE_ID_HERE"
+
+[vars]
+# The exact address of the site, no path and no trailing slash, e.g. https://your-name.github.io
+# Several addresses can be separated with commas.
+ALLOWED_ORIGIN = "https://carter-hub1.github.io"
+# Optional limits (the defaults are shown):
+# HOURLY_CAP = "40"   messages per visitor per hour
+# DAILY_CAP = "400"   messages for the whole demo per day
+# CLAUDE_MODEL = "claude-sonnet-5-5"

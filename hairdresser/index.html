@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Willow Lane Hair &amp; Beauty | Livingston salon (demo)</title>
+<meta name="description" content="A demo website for a West Lothian hair and beauty salon with an AI assistant that takes appointment requests, accepts photos and sends the salon a clear summary.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 8C8 8 5 6 4 3c4 0 7 1.5 8 5z' fill='%238FB59A'/%3E%3Cpath d='M12 12c4 0 7-2 8-5-4 0-7 1.5-8 5z' fill='%237B2A5E'/%3E%3Cpath d='M12 17c-3.5 0-6-1.7-7-4.5 3.5 0 6 1.4 7 4.5z' fill='%238FB59A'/%3E%3Cpath d='M12 22C12 14 12 9 12 3' stroke='%23173A2E' stroke-width='1.6' stroke-linecap='round' fill='none'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Figtree:ital,wght@0,400..700;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="site.css?v=1">
+</head>
+<body>
+<a class="skip" href="#main">Skip to the content</a>
+<div class="demobar"><div class="wrap">Demo website. Willow Lane Hair &amp; Beauty is a made-up salon for testing an AI enquiry assistant.</div></div>
+<header class="head">
+  <div class="wrap">
+    <a class="brand" href="./"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22C12 14 12 9 12 3" stroke="#173A2E" stroke-width="1.6" stroke-linecap="round" fill="none"/><path d="M12 8C8 8 5 6 4 3c4 0 7 1.5 8 5z" fill="#8FB59A"/><path d="M12 12c4 0 7-2 8-5-4 0-7 1.5-8 5z" fill="#7B2A5E"/><path d="M12 17c-3.5 0-6-1.7-7-4.5 3.5 0 6 1.4 7 4.5z" fill="#8FB59A"/></svg><span>Willow Lane<small>Hair &amp; Beauty, Livingston</small></span></a>
+    <button class="menu" id="menu" type="button" aria-expanded="false" aria-controls="nav">Menu</button>
+    <nav class="nav" id="nav" aria-label="Main">
+      <a href="./" aria-current="page">Home</a>
+      <a href="services.html">Services and prices</a>
+      <a href="visit.html">Visit us</a>
+      <a href="faqs.html">FAQs</a>
+      <button class="cta" type="button" data-open>Request an appointment</button>
+    </nav>
+  </div>
+</header>
+<main id="main">
+
+<section class="hero">
+  <div class="wrap">
+    <div>
+      <h1>Tell us what you'd like, and we'll find you a chair</h1>
+      <p class="lede">Chat to our assistant any time of day. Say what you want done and send a photo of the style you love. The salon reads it and confirms your time by text.</p>
+      <div class="actions">
+        <button class="btn" type="button" data-open>Request an appointment</button>
+        <a class="btn ghost" href="services.html">See services and prices</a>
+      </div>
+    </div>
+    <div>
+      <aside class="sheet" aria-label="Example appointment request">
+  <div class="stripe" aria-hidden="true"></div>
+  <div class="sheet-body">
+    <h2>Appointment request</h2>
+    <p class="sub">Example of what lands on the salon's phone.</p>
+    <dl class="rows">
+      <div class="row"><dt>Name</dt><dd>Example Client</dd></div>
+      <div class="row"><dt>Service</dt><dd>Balayage and blow-dry</dd></div>
+      <div class="row"><dt>Client</dt><dd>New, needs a patch test</dd></div>
+      <div class="row"><dt>Details</dt><dd>Dark brown, shoulder length, never coloured. Photo of the shade she likes attached.</dd></div>
+      <div class="row"><dt>Urgency</dt><dd><span class="pill urgent">Urgent</span></dd></div>
+      <div class="row"><dt>Requested slot</dt><dd>Saturday 9am to 12pm</dd></div>
+    </dl>
+  </div>
+</aside>
+<p class="tilt-note">The salon confirms every appointment itself. <button class="linkbtn" type="button" data-open>Try the chat and send a photo.</button></p>
+    </div>
+  </div>
+</section>
+
+<section class="tryit"><div class="wrap">
+  <h2>Try it as a client</h2>
+  <div class="chips">
+    <button class="chip" type="button" data-ask="Balayage for a wedding">Balayage for a wedding</button>
+    <button class="chip" type="button" data-ask="Gents cut this week">Gents cut this week</button>
+    <button class="chip" type="button" data-ask="Gel nails and brows">Gel nails and brows</button>
+    <button class="chip" type="button" data-ask="First time colour client">First time colour client</button>
+  </div>
+</div></section>
+
+<section class="band">
+  <div class="wrap">
+    <h2>What we do</h2>
+    <p class="intro">Prices start from the figures below. The stylist confirms the final price at your appointment.</p>
+    <div class="menus">
+      <div><h3>Cutting and styling</h3><ul><li><span>Ladies cut and style</span><i></i><b>from £38</b></li><li><span>Gents cut</span><i></i><b>from £22</b></li><li><span>Children's cut</span><i></i><b>from £16</b></li><li><span>Blow-dry</span><i></i><b>from £28</b></li><li><span>Hair-up for an event</span><i></i><b>from £55</b></li></ul></div>
+      <div><h3>Colour</h3><ul><li><span>Regrowth colour</span><i></i><b>from £48</b></li><li><span>Full head colour</span><i></i><b>from £62</b></li><li><span>Half-head highlights</span><i></i><b>from £75</b></li><li><span>Balayage</span><i></i><b>from £110</b></li><li><span>Toner</span><i></i><b>from £20</b></li></ul></div>
+    </div>
+    <p class="btn-row"><a class="btn ghost" href="services.html">Beauty, nails and the full list</a></p>
+  </div>
+</section>
+
+<section class="band tint">
+  <div class="wrap fraserside">
+    <div>
+      <h2>See it from the salon's side</h2>
+      <p class="intro">Every finished chat becomes an appointment request in the salon's inbox, with the photos the client sent and a tag for how soon it's needed. The team replies to the ones they want.</p>
+      <a class="btn" href="owner.html">Open the demo inbox</a>
+    </div>
+    <div class="phone-mock" aria-label="Example of the salon inbox on a phone">
+      <div class="pm-top">Requests</div>
+      <ul>
+        <li><span class="th" aria-hidden="true"></span><div><strong>Balayage and blow-dry</strong><span>Example Client, new</span></div><em class="pill urgent">Urgent</em></li>
+        <li><span class="th" aria-hidden="true"></span><div><strong>Gel nails and brows</strong><span>Example Client, existing</span></div><em class="pill routine">Routine</em></li>
+        <li><span class="th" aria-hidden="true"></span><div><strong>Gents cut</strong><span>Example Client, new</span></div><em class="pill routine">Routine</em></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap">
+    <h2>How the assistant answers</h2>
+    <p class="intro">It sticks to what the salon offers, quotes only the listed prices and never gives advice on skin or health. Examples of its replies:</p>
+    <div class="qa">
+      <div class="pair"><p class="q">How much is a balayage?</p><p class="a">From £110. The stylist confirms the final price at your appointment, because it depends on your hair's length and thickness.</p></div>
+      <div class="pair"><p class="q">Do I need a patch test?</p><p class="a">Yes, for a first colour or tint, at least 48 hours before. The salon can arrange it when you request your appointment.</p></div>
+      <div class="pair"><p class="q">Can I get extensions put in?</p><p class="a">Sorry, the salon doesn't do extensions. I can help with a cut, colour or an event style if you'd like.</p></div>
+      <div class="pair"><p class="q">Can I come on a Monday?</p><p class="a">The salon is closed on Mondays. I can ask for Tuesday 10am to 12pm, Thursday 2pm to 5pm or Saturday 9am to 12pm.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="band tint">
+  <div class="wrap">
+    <h2>How a request works</h2>
+    <p class="intro">No waiting on hold and no form to fill in.</p>
+    <ol class="steps">
+      <li><h3>Chat to the assistant</h3><p>Say what you'd like and add a photo of your hair or the look you want. It asks a few short questions, one or two at a time.</p></li>
+      <li><h3>The salon gets a summary</h3><p>Your name, mobile number, service, hair history and photos land on the salon's phone in one tidy list.</p></li>
+      <li><h3>The salon confirms</h3><p>They confirm your time by text or phone on a working day. Nothing is booked until they do.</p></li>
+    </ol>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap">
+    <h2>What clients say</h2>
+    <ul class="quotes">
+      <li><p>Sent a photo of the shade I wanted and had a time offered the same evening.</p><cite>Example client, Livingston</cite></li>
+      <li><p>It asked about my colour history, so the stylist was ready for me when I arrived.</p><cite>Example client, Bathgate</cite></li>
+    </ul>
+    <p class="demotag">These are made-up examples for the demo, not real reviews.</p>
+  </div>
+</section>
+
+<div class="callstrip"><div class="wrap"><p>Ready for a new look? Tell the assistant what you have in mind.</p><button class="btn" type="button" data-open>Request an appointment</button></div></div>
+</main>
+<footer class="foot">
+  <div class="wrap">
+    <div class="cols">
+      <div>
+        <h3>Willow Lane Hair &amp; Beauty</h3>
+        <p>Hair and beauty in Livingston, West Lothian.</p>
+        <p>Tuesday to Friday 9am to 6pm (Thursday until 8pm), Saturday 9am to 4pm.</p>
+      </div>
+      <div>
+        <h3>Pages</h3>
+        <ul>
+          <li><a href="services.html">Services and prices</a></li>
+          <li><a href="visit.html">Visit us</a></li>
+          <li><a href="faqs.html">FAQs</a></li>
+        </ul>
+      </div>
+      <div>
+        <h3>Contact</h3>
+        <ul>
+          <li><a href="tel:01506000321">01506 000 321</a></li>
+          <li><a href="mailto:hello@example.com">hello@example.com</a></li>
+          <li><a href="owner.html">Salon inbox (demo)</a></li>
+        </ul>
+      </div>
+    </div>
+    <p class="fine">This is a demo. The salon, prices, phone number and email address are made up, and nothing on this site is a real offer. The chat assistant is an AI that can make mistakes.</p>
+  </div>
+</footer>
+<div class="mbar"><a class="btn ghost" href="tel:01506000321">Call the salon</a><button class="btn" type="button" data-open>Request an appointment</button></div>
+<script src="config.js"></script>
+<script src="site.js?v=1"></script>
+</body>
+</html>
