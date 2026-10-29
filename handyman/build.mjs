@@ -29,8 +29,8 @@ function page({ file, title, desc, body, bare = false }) {
 <link rel="icon" href="${favicon}">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Public+Sans:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="site.css">
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500..700&family=DM+Sans:ital,opsz,wght@0,9..40,400..700;1,9..40,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="site.css?v=3">
 </head>
 <body>
 <a class="skip" href="#main">Skip to the content</a>
@@ -43,10 +43,10 @@ function page({ file, title, desc, body, bare = false }) {
       ${nav}
       ${bare ? '' : '<button class="cta" type="button" data-open>Ask the assistant</button>'}
     </nav>
+    <div class="side-info"><a href="tel:${TEL}">${PHONE}</a><p>Mon to Fri 8am to 6pm<br>Sat 9am to 1pm</p></div>
   </div>
 </header>
 <div class="safety"><div class="wrap"><strong>Fire, smoke or a gas smell? Call 999.</strong> For gas, also call 0800 111 999. Fraser doesn't do out-of-hours call-outs.</div></div>
-<div class="tape" aria-hidden="true">${Array.from({ length: 30 }, (_, i) => `<span>${i + 1}</span>`).join('')}</div>
 <main id="main">
 ${body}
 </main>
@@ -82,7 +82,7 @@ ${body}
 </footer>
 ${bare ? '<script>window.SAM_NO_ASSISTANT = true;</script>' : `<div class="mbar"><a class="btn ghost" href="tel:${TEL}">Call Fraser</a><button class="btn" type="button" data-open>Ask the assistant</button></div>`}
 <script src="config.js"></script>
-<script src="site.js"></script>${bare ? '\n<script src="owner.js"></script>' : ''}
+<script src="site.js?v=3"></script>${bare ? '\n<script src="owner.js?v=3"></script>' : ''}
 </body>
 </html>
 `;
