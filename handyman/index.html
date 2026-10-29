@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400..800;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="site.css?v=5">
+<link rel="stylesheet" href="site.css?v=6">
 </head>
 <body>
 <a class="skip" href="#main">Skip to the content</a>
@@ -42,13 +42,6 @@
         <a class="btn navy" href="mailto:fraser@example.com"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3.5 6.5l8.5 7 8.5-7"/></svg>Send an email</a>
         <button class="btn ghost wide" type="button" data-open>Log a job request with photos</button>
       </div>
-      <p class="try">Not sure what to type? Tap one.</p>
-      <div class="chips">
-          <button class="chip" type="button" data-ask="Mount a TV on my wall">Mount a TV on my wall</button>
-          <button class="chip" type="button" data-ask="My tap keeps dripping">My tap keeps dripping</button>
-          <button class="chip" type="button" data-ask="Build a wardrobe">Build a wardrobe</button>
-          <button class="chip" type="button" data-ask="My door will not close">My door will not close</button>
-      </div>
     </div>
     <div>
       <aside class="sheet" aria-label="Example job sheet">
@@ -70,6 +63,16 @@
     </div>
   </div>
 </section>
+
+<section class="tryit"><div class="wrap">
+  <div><h2>Try it as a customer</h2><p>Tap a job below, or type your own. The assistant asks a few questions and builds the job sheet.</p></div>
+  <div class="chips">
+          <button class="chip" type="button" data-ask="Mount a TV on my wall">Mount a TV on my wall</button>
+          <button class="chip" type="button" data-ask="My tap keeps dripping">My tap keeps dripping</button>
+          <button class="chip" type="button" data-ask="Build a wardrobe">Build a wardrobe</button>
+          <button class="chip" type="button" data-ask="My door will not close">My door will not close</button>
+  </div>
+</div></section>
 
 <div class="trust"><div class="wrap">
   <ul>
@@ -98,6 +101,37 @@
 </section>
 
 <div class="callstrip"><div class="wrap"><p>Got a few jobs on the list? Call Fraser or send the details.</p><div class="acts"><a class="btn call" href="tel:01314960147"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.6 10.8a15.1 15.1 0 006.6 6.6l2.2-2.2a1 1 0 011-.25 11.4 11.4 0 003.6.57 1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1c0 1.25.2 2.45.57 3.6a1 1 0 01-.25 1z"/></svg>Call us now</a><button class="btn navy" type="button" data-open>Log a job request</button></div></div></div>
+
+<section class="band white">
+  <div class="wrap fraserside">
+    <div>
+      <h2>See it from Fraser's side</h2>
+      <p class="intro">Every finished chat becomes a job sheet in Fraser's inbox, with the photos the customer sent and a tag for how urgent it is. He opens it between jobs and replies to the ones he wants.</p>
+      <a class="btn navy" href="owner.html">Open the demo inbox</a>
+    </div>
+    <div class="phone-mock" aria-label="Example of Fraser's inbox on a phone">
+      <div class="pm-top">Enquiries</div>
+      <ul>
+        <li><span class="th" aria-hidden="true"></span><div><strong>Mounting a TV</strong><span>Example Customer, Bathgate</span></div><em class="pill routine">Routine</em></li>
+        <li><span class="th" aria-hidden="true"></span><div><strong>Dripping kitchen tap</strong><span>Example Customer, Livingston</span></div><em class="pill urgent">Urgent</em></li>
+        <li><span class="th" aria-hidden="true"></span><div><strong>Wardrobe to build</strong><span>Example Customer, Broxburn</span></div><em class="pill routine">Routine</em></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap">
+    <h2>How the assistant answers</h2>
+    <p class="intro">It sticks to what Fraser does and never makes up prices or promises. Examples of its replies:</p>
+    <div class="qa">
+      <div class="pair"><p class="q">How much for a dripping tap?</p><p class="a">Fraser gives a free quote once he has seen the job or a photo. Which room is the tap in?</p></div>
+      <div class="pair"><p class="q">Can you come Saturday afternoon?</p><p class="a">Fraser works Saturdays 9am to 1pm. I can ask for Saturday morning, or offer Friday, Monday or Tuesday. He confirms every visit himself.</p></div>
+      <div class="pair"><p class="q">Can you fix my boiler?</p><p class="a">Sorry, Fraser doesn't do gas work. A registered specialist is the right person for that.</p></div>
+      <div class="pair"><p class="q">Can you come tonight?</p><p class="a">Fraser doesn't do out-of-hours call-outs. He is back at 8am on the next working day, and urgent jobs come first.</p></div>
+    </div>
+  </div>
+</section>
 
 <section class="band white">
   <div class="wrap">
@@ -177,6 +211,6 @@
 </footer>
 <div class="mbar"><a class="btn ghost" href="tel:01314960147">Call Fraser</a><button class="btn" type="button" data-open>Ask the assistant</button></div>
 <script src="config.js"></script>
-<script src="site.js?v=5"></script>
+<script src="site.js?v=6"></script>
 </body>
 </html>
