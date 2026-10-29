@@ -54,3 +54,12 @@ Change only the `BUSINESS FACTS` block in `worker/prompt.js` (services, area, ho
 
 - The assistant is an AI and can still get things wrong. The instructions tell it never to give prices, never to promise visits or certificates, and to send burning smells, sparks and shocks to 999, but check each of those yourself before showing it to anyone.
 - It is a demo, not a booking system. Nothing is saved and nothing is sent to the electrician.
+
+## The handyman site (Fraser's Handyman)
+
+`../handyman/` is a second demo website, for a made-up handyman. It uses this same Worker, so there is nothing extra to deploy. After pulling the latest code, run `npx.cmd wrangler deploy` once in this folder.
+
+- The handyman pages send `trade: "handyman"` with each chat message. The Worker then uses `prompt-handyman.js` (no prices, handyman jobs, gas and flood safety) instead of `prompt.js`.
+- Saved enquiries are tagged with their trade. Each owner inbox shows only its own site's enquiries. Both inboxes use the same `OWNER_TOKEN` passphrase.
+- Emails say which business the enquiry is for.
+- The handyman site has no photo images yet. Add some to `handyman/images/` and reference them from the pages.

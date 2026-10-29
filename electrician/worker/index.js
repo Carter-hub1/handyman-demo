@@ -1,13 +1,14 @@
 // Cloudflare Worker for the Sam's Electrical demo.
-//   POST /chat    { messages, cid?, images? }  ->  { reply }       the customer chat
+//   POST /chat    { messages, cid?, images?, trade? }  ->  { reply }   the customer chat (trade: 'electrician' by default, or 'handyman')
 //   GET  /health  { ok: true }
 //   Owner inbox (needs the OWNER_TOKEN passphrase as "Authorization: Bearer ..."):
-//   GET  /owner/enquiries                list of saved enquiries
+//   GET  /owner/enquiries[?trade=handyman]  list of saved enquiries for one site
 //   GET  /owner/enquiries/<id>           one enquiry
 //   GET  /owner/enquiries/<id>/photos    its photos
 //   POST /owner/enquiries/<id>/status    { status: 'new' | 'handled' }
 // The instructions live in prompt.js and every key lives in a Worker secret, so none of them reach the browser.
-import { PROMPT } from './prompt.js';
+import { PROMPT as ELECTRICIAN_PROMPT } from './prompt.js';
+import { PROMPT as HANDYMAN_PROMPT } from './prompt-handyman.js';
 
 const DEFAULT_MODEL = 'claude-sonnet-5-5';
 const MAX_TEXT_BODY = 20000;         // bytes of request body when there are no photos
@@ -24,9 +25,28 @@ const MARK = '---OWNER SUMMARY---';
 const FIELDS = ['Name', 'Phone', 'Address and postcode', 'Job type', 'Property type', 'Details', 'Urgency', 'Requested slot', 'Photos', 'Notes'];
 const JPEG_PREFIX = 'data:image/jpeg;base64,';
 
+// One Worker serves both demo websites. Each trade has its own instructions, greeting and wording.
+const TRADES = {
+  electrician: {
+    prompt: ELECTRICIAN_PROMPT,
+    greeting: "Hi, I'm Sam's AI assistant. Tell me what you need doing, or what has gone wrong, and I'll pass the details to Sam.",
+    business: "Sam's Electrical",
+    ownerPage: 'electrician/owner.html',
+    fallbackJob: 'electrical job',
+  },
+  handyman: {
+    prompt: HANDYMAN_PROMPT,
+    greeting: "Hi, I'm Fraser's AI assistant. Tell me what needs doing and I'll pass the details to Fraser.",
+    business: "Fraser's Handyman",
+    ownerPage: 'handyman/owner.html',
+    fallbackJob: 'handyman job',
+  },
+};
+const tradeOf = (v) => (v === 'handyman' ? 'handyman' : 'electrician');
+
 // Said to the model on every request, after the prompt. The page already shows a greeting, so the model skips its own.
-const PAGE_NOTE =
-  "The chat page has already greeted the customer with: 'Hi, I'm Sam's AI assistant. Tell me what you need doing, or what has gone wrong, and I'll pass the details to Sam.' Do not introduce yourself again. Go straight to helping with their message.";
+const pageNote = (t) =>
+  `The chat page has already greeted the customer with: '${TRADES[t].greeting}' Do not introduce yourself again. Go straight to helping with their message.`;
 
 export default {
   async fetch(req, env, ctx) {
@@ -71,6 +91,7 @@ export default {
     if (!images.length && raw.length > MAX_TEXT_BODY) return json({ error: 'too_large', message: 'That conversation is too long.' }, 413);
     const messages = cleanMessages(body && body.messages);
     if (!messages) return json({ error: 'bad_messages' }, 400);
+    const trade = tradeOf(body && body.trade);
     const cid = body && typeof body.cid === 'string' && /^[a-f0-9]{16,64}$/.test(body.cid) ? body.cid : null;
 
     const blocked = await overLimit(env, ip);
@@ -84,7 +105,7 @@ export default {
       ];
     }
 
-    const system = `${PROMPT}\n\n${PAGE_NOTE}\n\nCURRENT TIME\nIt is ${ukNow()} in the UK.`;
+    const system = `${TRADES[trade].prompt}\n\n${pageNote(trade)}\n\nCURRENT TIME\nIt is ${ukNow()} in the UK.`;
     let upstream;
     try {
       upstream = await fetch('https://api.anthropic.com/v1/messages', {
@@ -119,7 +140,7 @@ export default {
 
     // Save photos and the finished enquiry, and email Sam, without making the customer wait for it.
     if (cid && env.LIMITS) {
-      const work = afterReply(env, cid, images, reply).catch((e) => console.log('save failed', String(e)));
+      const work = afterReply(env, cid, images, reply, trade).catch((e) => console.log('save failed', String(e)));
       if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(work);
       else await work;
     }
@@ -217,7 +238,7 @@ const valueOf = (rows, label) => {
 
 const oneLine = (v, n) => String(v ?? '').replace(/[\r\n]+/g, ' ').slice(0, n);
 
-async function afterReply(env, cid, images, reply) {
+async function afterReply(env, cid, images, reply, trade) {
   if (images.length) {
     const key = `pic:${cid}`;
     let have = [];
@@ -238,6 +259,7 @@ async function afterReply(env, cid, images, reply) {
   const now = new Date().toISOString();
   const rec = {
     id: cid,
+    trade,
     created: existing ? existing.created : now,
     updated: now,
     status: existing ? existing.status : 'new',
@@ -251,19 +273,19 @@ async function afterReply(env, cid, images, reply) {
   if (!existing) await notifySam(env, rec);
 }
 
-const metaOf = (r) => ({ n: r.name, j: r.job, u: r.urgency, s: r.status, c: r.created, up: r.updated, p: r.photos });
+const metaOf = (r) => ({ n: r.name, j: r.job, u: r.urgency, s: r.status, c: r.created, up: r.updated, p: r.photos, t: r.trade || 'electrician' });
 const putEnquiry = (env, rec) =>
   env.LIMITS.put(`enq:${rec.id}`, JSON.stringify(rec), { expirationTtl: KEEP_SECONDS, metadata: metaOf(rec) });
 
 /* ---------- Email to Sam ---------- */
 
 // The inbox page sits beside the website, so the address can be worked out from the allowed site address unless OWNER_URL says otherwise.
-function ownerUrl(env) {
-  if (env.OWNER_URL) return env.OWNER_URL;
+// OWNER_URL, if set, is the electrician inbox address; the handyman inbox sits in the neighbouring folder.
+function ownerUrl(env, trade) {
+  if (env.OWNER_URL) return trade === 'handyman' ? env.OWNER_URL.replace('/electrician/', '/handyman/') : env.OWNER_URL;
   const first = (env.ALLOWED_ORIGIN || '').split(',').map((s) => s.trim()).find((s) => /^https:\/\//.test(s));
-  return first ? `${first}/handyman-demo/electrician/owner.html` : '';
+  return first ? `${first}/handyman-demo/${TRADES[trade].ownerPage}` : '';
 }
-
 
 // Sent through a small Google Apps Script that uses a Gmail account (see mail-relay.gs). Off until all three settings exist.
 async function notifySam(env, rec) {
@@ -274,20 +296,22 @@ async function notifySam(env, rec) {
   if (used >= (Number(env.EMAIL_DAILY_CAP) || 20)) return;
   await env.LIMITS.put(capKey, String(used + 1), { expirationTtl: 172800 });
 
+  const t = TRADES[rec.trade] ? rec.trade : 'electrician';
+  const T = TRADES[t];
   const label = { emergency: 'EMERGENCY', urgent: 'Urgent', routine: 'Routine' }[rec.urgency];
   const lines = rec.rows.map((r) => `${r.label}: ${isBlank(r.value) ? 'Not given' : r.value}`);
   const text =
-    "A customer finished a chat on the Sam's Electrical demo website.\n\n" +
+    `A customer finished a chat on the ${T.business} demo website.\n\n` +
     lines.join('\n') +
     (rec.photos ? `\n\nPhotos: ${rec.photos} attached in your inbox` : '') +
-    (ownerUrl(env) ? `\n\nOpen your inbox: ${ownerUrl(env)}` : '') +
-    '\n\nThis is a demo. Nothing is booked until Sam confirms with the customer.\n';
-  const subject = oneLine(`New enquiry (${label}): ${rec.job || 'electrical job'}${rec.name ? ' from ' + rec.name : ''}`, 120);
+    (ownerUrl(env, t) ? `\n\nOpen your inbox: ${ownerUrl(env, t)}` : '') +
+    '\n\nThis is a demo. Nothing is booked until the owner confirms with the customer.\n';
+  const subject = oneLine(`New enquiry (${label}): ${rec.job || T.fallbackJob}${rec.name ? ' from ' + rec.name : ''}`, 120);
   try {
     await fetch(env.MAIL_WEBHOOK_URL, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ secret: env.MAIL_SECRET, to: env.SAM_EMAIL, subject, text, name: "Sam's Electrical enquiries (demo)" }),
+      body: JSON.stringify({ secret: env.MAIL_SECRET, to: env.SAM_EMAIL, subject, text, name: `${T.business} enquiries (demo)` }),
       redirect: 'follow',
     });
   } catch (e) {
@@ -323,8 +347,10 @@ async function ownerRoutes(req, env, url, ip, json) {
 
   const path = url.pathname.replace(/\/+$/, '');
   if (path === '/owner/enquiries' && req.method === 'GET') {
+    const want = tradeOf(url.searchParams.get('trade'));
     const listing = await env.LIMITS.list({ prefix: 'enq:', limit: 200 });
     const items = listing.keys
+      .filter((k) => ((k.metadata || {}).t || 'electrician') === want)
       .map((k) => {
         const m = k.metadata || {};
         return { id: k.name.slice(4), name: m.n || '', job: m.j || '', urgency: m.u || 'routine', status: m.s || 'new', created: m.c || '', updated: m.up || '', photos: m.p || 0 };
