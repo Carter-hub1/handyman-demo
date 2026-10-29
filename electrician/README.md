@@ -73,3 +73,15 @@ Each new enquiry can also push a short alert to the owner's phone through the fr
 3. Run `npx.cmd wrangler deploy`.
 
 The push says only the urgency, job type and photo count (for example "Mounting a TV (2 photos)") and opens the inbox when tapped. Names, addresses and phone numbers are never sent. At most 50 pushes a day (`PUSH_DAILY_CAP`).
+
+## Live availability from the owner's Google Calendar (optional)
+
+By default the assistant offers the fixed demo slots written in the prompt. With this switched on it offers only the visit windows that are actually free in the owner's calendar, as requests. The owner still confirms every visit, and nothing is booked automatically.
+
+1. Go to script.google.com, create a new project, and paste in `worker/availability.gs`. Replace `PASTE_A_LONG_RANDOM_TEXT_HERE` with a long phrase of your own. Edit the `WINDOWS` list if the visit times differ.
+2. Choose `authorize` in the function list and click Run, and approve calendar access. Optionally run `preview` and check the log to see the windows it would offer.
+3. Deploy as a web app (Execute as: Me, Who has access: Anyone) and copy the web app address.
+4. In `electrician\worker` run `npx.cmd wrangler secret put AVAIL_URL` (the address) and `npx.cmd wrangler secret put AVAIL_SECRET` (the phrase). `AVAIL_URL_HANDYMAN` overrides the address for the handyman site only.
+5. Run `npx.cmd wrangler deploy`.
+
+Any event in the calendar (including all-day events) blocks the windows it overlaps, unless it is marked as free. Slots are re-read at most every five minutes. If the script is unreachable the assistant falls back to the fixed slots. Only the free windows are shared with the Worker, never event titles or details.

@@ -105,7 +105,8 @@ export default {
       ];
     }
 
-    const system = `${TRADES[trade].prompt}\n\n${pageNote(trade)}\n\nCURRENT TIME\nIt is ${ukNow()} in the UK.`;
+    const slots = await liveSlots(env, trade);
+    const system = `${TRADES[trade].prompt}\n\n${pageNote(trade)}\n\nCURRENT TIME\nIt is ${ukNow()} in the UK.${availNote(slots, TRADES[trade].business)}`;
     let upstream;
     try {
       upstream = await fetch('https://api.anthropic.com/v1/messages', {
@@ -279,6 +280,44 @@ async function afterReply(env, cid, images, reply, trade) {
 const metaOf = (r) => ({ n: r.name, j: r.job, u: r.urgency, s: r.status, c: r.created, up: r.updated, p: r.photos, t: r.trade || 'electrician' });
 const putEnquiry = (env, rec) =>
   env.LIMITS.put(`enq:${rec.id}`, JSON.stringify(rec), { expirationTtl: KEEP_SECONDS, metadata: metaOf(rec) });
+
+/* ---------- Live availability from the owner's calendar (optional) ---------- */
+
+// A small Google Apps Script (availability.gs) reads the owner's calendar and returns only the free visit windows, never event details.
+// AVAIL_URL is its web app address, AVAIL_SECRET the shared phrase. AVAIL_URL_HANDYMAN (optional) overrides the address for the handyman site.
+// If anything goes wrong the chat falls back to the fixed slots written in the prompt.
+const AVAIL_TTL = 300;
+
+async function liveSlots(env, trade) {
+  const url = String((trade === 'handyman' && env.AVAIL_URL_HANDYMAN) || env.AVAIL_URL || '').trim();
+  if (!/^https:\/\/[^\s]+$/.test(url) || !env.AVAIL_SECRET) return null;
+  const key = `avail:${trade}`;
+  try {
+    const hit = JSON.parse((await env.LIMITS.get(key)) || 'null');
+    if (Array.isArray(hit)) return hit;
+  } catch { /* fall through and fetch */ }
+  try {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 3500);
+    const res = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ secret: env.AVAIL_SECRET }), redirect: 'follow', signal: ctl.signal });
+    clearTimeout(timer);
+    const data = JSON.parse(await res.text());
+    if (!data || !Array.isArray(data.slots)) return null;
+    const slots = data.slots.filter((x) => typeof x === 'string').map((x) => oneLine(x, 60)).filter(Boolean).slice(0, 10);
+    await env.LIMITS.put(key, JSON.stringify(slots), { expirationTtl: AVAIL_TTL });
+    return slots;
+  } catch (e) {
+    console.log('availability failed', String(e));
+    return null;
+  }
+}
+
+const availNote = (slots, business) =>
+  slots === null
+    ? ''
+    : slots.length
+      ? `\n\nLIVE AVAILABILITY (read from ${business}'s calendar just now)\nThese replace the demo visit slots listed above. Offer only these, two or three at a time, and call them requests until the owner confirms. Never offer any other time.\n${slots.map((x) => `- ${x}`).join('\n')}`
+      : `\n\nLIVE AVAILABILITY (read from ${business}'s calendar just now)\nThere are no free visit slots in the next two weeks. Do not offer any time. Take the details and say the owner will suggest times.`;
 
 /* ---------- Instant phone alert (ntfy) ---------- */
 
