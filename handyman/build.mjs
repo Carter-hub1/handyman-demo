@@ -29,8 +29,8 @@ function page({ file, title, desc, body, bare = false }) {
 <link rel="icon" href="${favicon}">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500..700&family=DM+Sans:ital,opsz,wght@0,9..40,400..700;1,9..40,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="site.css?v=3">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400..800;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="site.css?v=4">
 </head>
 <body>
 <a class="skip" href="#main">Skip to the content</a>
@@ -41,9 +41,8 @@ function page({ file, title, desc, body, bare = false }) {
     <button class="menu" id="menu" type="button" aria-expanded="false" aria-controls="nav">Menu</button>
     <nav class="nav" id="nav" aria-label="Main">
       ${nav}
-      ${bare ? '' : '<button class="cta" type="button" data-open>Ask the assistant</button>'}
+      <a class="phone" href="tel:${TEL}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.6 10.8a15.1 15.1 0 006.6 6.6l2.2-2.2a1 1 0 011-.25 11.4 11.4 0 003.6.57 1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1c0 1.25.2 2.45.57 3.6a1 1 0 01-.25 1z"/></svg>${PHONE}</a>
     </nav>
-    <div class="side-info"><a href="tel:${TEL}">${PHONE}</a><p>Mon to Fri 8am to 6pm<br>Sat 9am to 1pm</p></div>
   </div>
 </header>
 <div class="safety"><div class="wrap"><strong>Fire, smoke or a gas smell? Call 999.</strong> For gas, also call 0800 111 999. Fraser doesn't do out-of-hours call-outs.</div></div>
@@ -82,7 +81,7 @@ ${body}
 </footer>
 ${bare ? '<script>window.SAM_NO_ASSISTANT = true;</script>' : `<div class="mbar"><a class="btn ghost" href="tel:${TEL}">Call Fraser</a><button class="btn" type="button" data-open>Ask the assistant</button></div>`}
 <script src="config.js"></script>
-<script src="site.js?v=3"></script>${bare ? '\n<script src="owner.js?v=3"></script>' : ''}
+<script src="site.js?v=4"></script>${bare ? '\n<script src="owner.js?v=4"></script>' : ''}
 </body>
 </html>
 `;
@@ -131,11 +130,12 @@ pages.push(page({
 <section class="hero">
   <div class="wrap">
     <div>
-      <h1>Handyman for small jobs around the house in West Lothian</h1>
-      <p class="lede">Mounting, assembly, repairs and touch-ups. Tell our assistant what needs doing, any time of day, and send a photo if it helps. Fraser reads the details and gets back to you on a working day.</p>
+      <h1>Reliable local handyman in West Lothian</h1>
+      <p class="lede">Small jobs around the house, done properly. Tell our assistant what needs doing, any time of day, and send a photo if it helps.</p>
       <div class="actions">
-        <button class="btn" type="button" data-open>Tell us about your job</button>
-        <a class="btn ghost" href="tel:${TEL}">Call ${PHONE}</a>
+        <a class="btn call" href="tel:${TEL}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.6 10.8a15.1 15.1 0 006.6 6.6l2.2-2.2a1 1 0 011-.25 11.4 11.4 0 003.6.57 1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1c0 1.25.2 2.45.57 3.6a1 1 0 01-.25 1z"/></svg>Call us now</a>
+        <a class="btn navy" href="mailto:${MAIL}"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3.5 6.5l8.5 7 8.5-7"/></svg>Send an email</a>
+        <button class="btn ghost wide" type="button" data-open>Log a job request with photos</button>
       </div>
       <p class="try">Not sure what to type? Tap one.</p>
       <div class="chips">
@@ -167,6 +167,8 @@ pages.push(page({
   </div>
 </section>
 
+<div class="callstrip"><div class="wrap"><p>Got a few jobs on the list? Call Fraser or send the details.</p><div class="acts"><a class="btn call" href="tel:${TEL}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.6 10.8a15.1 15.1 0 006.6 6.6l2.2-2.2a1 1 0 011-.25 11.4 11.4 0 003.6.57 1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1c0 1.25.2 2.45.57 3.6a1 1 0 01-.25 1z"/></svg>Call us now</a><button class="btn navy" type="button" data-open>Log a job request</button></div></div></div>
+
 <section class="band white">
   <div class="wrap">
     <h2>How an enquiry works</h2>
@@ -179,17 +181,31 @@ pages.push(page({
   </div>
 </section>
 
-<section class="band">
+<section class="band white">
   <div class="wrap">
-    <h2>What you can expect</h2>
-    <ul class="ruled">
-      <li><strong>Free quotes</strong><span>Fraser visits, or asks for photos first. You are not charged for the quote.</span></li>
-      <li><strong>Straight answers</strong><span>No jargon. If a job is not one Fraser does, he says so.</span></li>
-      <li><strong>Several jobs, one visit</strong><span>Got a list? Put it all in one enquiry and Fraser plans a single visit.</span></li>
-      <li><strong>Your area</strong><span>Livingston, Broxburn, Bathgate, Whitburn, Linlithgow and nearby. <a href="areas.html">See the full list</a>.</span></li>
+    <h2>Why choose Fraser</h2>
+    <ul class="why">
+      <li><strong>Free quotes</strong>Fraser visits, or looks at your photos first. No charge for the quote.</li>
+      <li><strong>Straight answers</strong>No jargon. If a job is not one he does, he tells you.</li>
+      <li><strong>Several jobs, one visit</strong>Put the whole list in one enquiry and he plans a single visit.</li>
+      <li><strong>Clear job sheet</strong>Your details and photos reach him in one tidy list, so nothing gets lost.</li>
+      <li><strong>Local to you</strong>Livingston, Broxburn, Bathgate, Whitburn, Linlithgow and nearby. <a href="areas.html">See the full list</a>.</li>
     </ul>
   </div>
 </section>
+
+<section class="band">
+  <div class="wrap">
+    <h2>What customers say</h2>
+    <ul class="quotes">
+      <li><p>Wardrobe built and fixed to the wall in one morning. Easy to arrange.</p><cite>Example customer, Livingston</cite></li>
+      <li><p>Sent a photo of the dripping tap and had a time offered the same day.</p><cite>Example customer, Bathgate</cite></li>
+    </ul>
+    <p class="demotag">These are made-up examples for the demo, not real reviews.</p>
+  </div>
+</section>
+
+<div class="callstrip"><div class="wrap"><p>Got a few jobs on the list? Call Fraser or send the details.</p><div class="acts"><a class="btn call" href="tel:${TEL}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.6 10.8a15.1 15.1 0 006.6 6.6l2.2-2.2a1 1 0 011-.25 11.4 11.4 0 003.6.57 1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1c0 1.25.2 2.45.57 3.6a1 1 0 01-.25 1z"/></svg>Call us now</a><button class="btn navy" type="button" data-open>Log a job request</button></div></div></div>
 
 <section class="band white">
   <div class="wrap">
