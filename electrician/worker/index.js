@@ -270,12 +270,47 @@ async function afterReply(env, cid, images, reply, trade) {
     photos,
   };
   await putEnquiry(env, rec);
-  if (!existing) await notifySam(env, rec);
+  if (!existing) {
+    await notifySam(env, rec);
+    await notifyPush(env, rec);
+  }
 }
 
 const metaOf = (r) => ({ n: r.name, j: r.job, u: r.urgency, s: r.status, c: r.created, up: r.updated, p: r.photos, t: r.trade || 'electrician' });
 const putEnquiry = (env, rec) =>
   env.LIMITS.put(`enq:${rec.id}`, JSON.stringify(rec), { expirationTtl: KEEP_SECONDS, metadata: metaOf(rec) });
+
+/* ---------- Instant phone alert (ntfy) ---------- */
+
+// A push to the owner's phone through the free ntfy app. The topic name acts as the password, so it must be long and random.
+// Only the job type and urgency are sent, never the customer's name, address or phone number: the details stay in the inbox.
+// NTFY_TOPIC is used for every trade; NTFY_TOPIC_HANDYMAN (optional) overrides it for the handyman site. NTFY_SERVER defaults to https://ntfy.sh.
+async function notifyPush(env, rec) {
+  const t = TRADES[rec.trade] ? rec.trade : 'electrician';
+  const topic = String((t === 'handyman' && env.NTFY_TOPIC_HANDYMAN) || env.NTFY_TOPIC || '').trim();
+  if (!/^[A-Za-z0-9_-]{16,64}$/.test(topic)) return;
+  const day = new Date().toISOString().slice(0, 10);
+  const capKey = `push:${day}`;
+  const used = Number((await env.LIMITS.get(capKey)) || 0);
+  if (used >= (Number(env.PUSH_DAILY_CAP) || 50)) return;
+  await env.LIMITS.put(capKey, String(used + 1), { expirationTtl: 172800 });
+
+  const label = { emergency: 'EMERGENCY', urgent: 'Urgent', routine: 'Routine' }[rec.urgency] || 'Routine';
+  const headers = {
+    Title: `New enquiry (${label})`,
+    Priority: rec.urgency === 'emergency' ? '5' : rec.urgency === 'urgent' ? '4' : '3',
+    Tags: rec.urgency === 'emergency' ? 'rotating_light' : rec.urgency === 'urgent' ? 'warning' : 'wrench',
+  };
+  const link = ownerUrl(env, t);
+  if (/^https:\/\/[\x21-\x7e]+$/.test(link)) headers.Click = link;
+  const server = /^https:\/\/[A-Za-z0-9.-]+$/.test(env.NTFY_SERVER || '') ? env.NTFY_SERVER : 'https://ntfy.sh';
+  const body = oneLine(`${rec.job || TRADES[t].fallbackJob}${rec.photos ? ` (${rec.photos} photo${rec.photos > 1 ? 's' : ''})` : ''}. Open the inbox for the details.`, 160);
+  try {
+    await fetch(`${server}/${topic}`, { method: 'POST', headers, body });
+  } catch (e) {
+    console.log('push failed', String(e));
+  }
+}
 
 /* ---------- Email to Sam ---------- */
 

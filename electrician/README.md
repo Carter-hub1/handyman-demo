@@ -63,3 +63,13 @@ Change only the `BUSINESS FACTS` block in `worker/prompt.js` (services, area, ho
 - Saved enquiries are tagged with their trade. Each owner inbox shows only its own site's enquiries. Both inboxes use the same `OWNER_TOKEN` passphrase.
 - Emails say which business the enquiry is for.
 - The handyman site has no photo images yet. Add some to `handyman/images/` and reference them from the pages.
+
+## Instant phone alert (optional)
+
+Each new enquiry can also push a short alert to the owner's phone through the free ntfy app. It is easier to switch on than the email and needs no Google script.
+
+1. Install the **ntfy** app on the phone and subscribe to a long random topic name, for example `fraser-jobs-k7x2q9m4v8w1`. The topic name acts as the password, so make it at least 16 characters and keep it private.
+2. In `electrician\worker` run `npx.cmd wrangler secret put NTFY_TOPIC` and type that topic name. For a separate handyman topic, also set `NTFY_TOPIC_HANDYMAN`.
+3. Run `npx.cmd wrangler deploy`.
+
+The push says only the urgency, job type and photo count (for example "Mounting a TV (2 photos)") and opens the inbox when tapped. Names, addresses and phone numbers are never sent. At most 50 pushes a day (`PUSH_DAILY_CAP`).
